@@ -1,0 +1,241 @@
+
+%% Template for a preprint Letter or Article for submission
+%% to the journal Nature.
+%% Written by Peter Czoschke, 26 February 2004
+%%
+
+
+%\documentclass[aip]{nature}
+
+%\documentclass[]{article}
+
+\documentclass[]{revtex4-2}
+
+% aip, onecolumn, amsmath, amssymb, reprint]{revtex4-1}
+
+%{revtex4-1}
+
+\usepackage{graphicx}% Include figure files
+\usepackage{dcolumn}% Align table columns on decimal point
+\usepackage{bm}% bold math
+%\usepackage[mathlines]{lineno}% Enable numbering of text and display math
+%\linenumbers\relax % Commence numbering lines
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+
+%\usepackage{multicol}
+\usepackage[export]{adjustbox}
+
+\usepackage{abstract}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+%\usepackage{float}
+\usepackage{sidecap}
+\usepackage{mathtools}
+\usepackage{adjustbox}
+\usepackage{ upgreek }
+
+\usepackage{fullpage}
+\newcommand{\ssection}[1]{%
+\section[#1]{\centering\normalfont\scshape #1}}
+\newcommand{\ssubsection}[1]{%
+\subsection[#1]{\bfseries\normalfont\scshape #1}}
+\newcommand{\ssubsubsection}[1]{%
+\ssubsubsection[#1]{\bfseries\normalfont\scshape #1}}
+
+\renewcommand{\theequation}{\arabic{equation}}
+
+\usepackage{soul,xcolor}
+
+
+\begin{document}
+
+\title[]{Combining High-Throughput Computations, Surrogate Models, and Genetic Algorithms for Discovering Novel Halide Perovskites}
+
+
+
+\author{Panayotis Manganaris, Jiaqi, Yang, Arun Mannodi-Kanakkithodi}
+ \email{amannodi@purdue.edu}
+\affiliation{School of Materials Engineering, Purdue University, West Lafayette, Indiana 47907, USA}%
+
+\date{\today}% It is always \today, today,
+             %  but any date may be explicitly specified
+
+
+
+
+\maketitle
+
+
+
+
+\begin{abstract}
+
+\textbf{The ability to predict the likelihood of impurity incorporation and their electronic energy levels in semiconductors is crucial for controlling its conductivity, and thus the semiconductor's performance in solar cells, photodiodes, and optoelectronics. The difficulty and expense of experimental and computational determination of impurity levels makes a data-driven machine learning approach appropriate. In this work, we show that a density functional theory-generated dataset of impurities in Cd-based chalcogenides CdTe, CdSe, and CdS can lead to accurate and generalizable predictive models of defect properties. By converting any \textit{semiconductor + impurity} system into a set of numerical descriptors, regression models are developed for the impurity formation enthalpy and charge transition levels. These regression models can subsequently predict impurity properties in mixed anion CdX compounds (where X is a combination of Te, Se and S) fairly accurately, proving that although trained only on the end points, they are applicable to intermediate compositions. We make machine-learned predictions of the Fermi-level-dependent formation energies of hundreds of possible impurities in 5 chalcogenide compounds, and we suggest a list of impurities which can shift the equilibrium Fermi level in the semiconductor as determined by the dominant intrinsic defects. These `dominating' impurities as predicted by machine learning compare well with DFT predictions, revealing the power of machine-learned models in the quick screening of impurities likely to affect the optoelectronic behavior of semiconductors.}
+
+\end{abstract}
+
+
+
+\section*{Introduction}
+
+... \\
+
+% \begin{figure*}[t]
+% \includegraphics[width=\linewidth]{Figure1.pdf}
+% \caption{\label{Fig:outline} 
+% \textbf{Basic outline, structure and properties.} (a) General outline of materials design process leading to ML-driven prediction of properties based on DFT data and intermediate step of converting materials to numerical descriptors. (b) The Zinc Blende structure adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue and Te/Se/S atoms in red. The unit cell has been indicated with dashed lines. (c) Comparison of band gaps computed at the PBE and HSE06 levels of theory with reported experimental values \cite{Expt_gap1,Expt_gap2}, for CdTe, CdSe, CdS, CdTe$_{0.5}$Se$_{0.5}$ and CdSe$_{0.5}$S$_{0.5}$. (d) Outline of the DFT and ML driven prediction of properties of impurities in Cd-based chalcogenides.}
+% \end{figure*}
+
+
+\section*{RESULTS AND DISCUSSION}
+
+\textbf{Figure1:} \\
+Outline of work: HT-DFT Data Generation $\rightarrow$ Descriptors and correlations $\rightarrow$ Surrogate ML Models (NN, RFR, GPR) $\rightarrow$ Inverse design using Genetic Algorithm $\rightarrow$ Validation of promising compounds. \\
+
+\textbf{Figure2:} \\
+Quick visualization of PBE data + correlations with descriptors (reproduced from other paper?). \\
+
+\textbf{Figure3:} \\
+All surrogate ML model results: 
+\begin{itemize}
+\item RMSE vs training set size for NN, RFR and GPR, using composition only, elemental only, and both together, for 4 properties: lattice constant, decomposition energy, band gap, PV FOM.
+\item Best RMSE values for each property for different ML techniques and different descriptors
+\item Parity plots for best ML models for each property
+\end{itemize} \\
+
+\textbf{Figure4:} \\
+Genetic algorithm results: 
+\begin{itemize}
+\item Fitness score vs generation, stability only.
+\item Fitness score vs generation, stability + band gap.
+\item Fitness score vs generation, stability + band gap + FOM.
+\item Performance of GA with NN/GPR/RFR and with comp/elem/comp+elem. \\
+\end{itemize}
+
+\textbf{Figure5:} \\
+Validation using new DFT calculations on 10 compositions in 4x4x4 supercell. DFT vs ML properties + band structure + absorption spectra. \\
+
+
+\subsection*{...}
+
+\subsection*{...}
+
+% \begin{table*}[htp]
+% \centering
+% \caption{RMSE (in eV) for regression models trained for PBE $\Updelta$H (Cd-rich), using different methods and sets of features.}
+% \label{table:PBE_form}
+% \medskip
+% \begin{tabular}{c|c|c|c|c}
+% \hline
+% \textbf{Dataset} & \textbf{Regression Method} & \textbf{Elemental properties} & \textbf{Unit cell defect properties} & \textbf{Elemental + Unit cell defect properties}  \\
+% \hline
+% %          &       &    &    &    \\
+%           &  RFR     &  0.40  &  0.20  &  0.17  \\
+% Training  &  KRR    &  0.40  &  0.30  &  0.20  \\
+%           &  LASSO  &  0.62  &  0.50  &  0.44  \\
+% %          &       &    &    &    \\
+% \hline
+% %          &       &    &    &    \\
+%       &  RFR     &  0.65  &  0.45  &  0.38  \\
+% Test  &  KRR    &  0.68  &  0.40  &  0.32  \\
+%       &  LASSO  &  0.75  &  0.52  &  0.47  \\
+% %          &       &    &    &    \\
+% \hline
+% %          &       &    &    &    \\
+%                         &  RFR     &  0.84  &  0.57  &  0.52  \\
+% CdTe$_{0.5}$Se$_{0.5}$  &  KRR    &  0.80  &  0.65  &  0.57  \\
+%                         &  LASSO  &  0.95  &  0.73  &  0.65  \\
+% %          &       &    &    &    \\
+% \hline
+% %          &       &    &    &    \\
+%                       &  RFR     &  0.86  &  0.63  &  0.57  \\
+% CdSe$_{0.5}$S$_{0.5}$  &  KRR    &  0.75  &  0.68  &  0.70  \\
+%                       &  LASSO  &  0.92  &  0.70  &  0.72  \\
+% %          &       &    &    &    \\
+% \hline
+% \end{tabular}
+% \end{table*}
+
+
+\subsection*{Summary}
+
+... \\
+
+
+
+\begin{methods}
+
+
+\section*{METHODS}
+
+
+\subsection*{DFT Details}
+
+... \\
+
+% \begin{equation}\label{eqn-1}
+% \begin{multlined}
+% E^f(q,E$_{F}$) = E(D$^{q}$) - E(CdX) + \mu + q(E$_{F}$ + E$_{vbm}$) + E_{corr}
+% \end{multlined}
+% \end{equation}
+
+% \begin{equation}\label{eqn-2}
+% \begin{multlined}
+% {\epsilon}(q_1/q_2) = \frac{E^{f}(q_{1},E_F=0) - E^{f}(q_{2},E_F=0)}{q_{2}-q_{1}}
+% \end{multlined}
+% \end{equation}
+
+
+\subsection*{Surrogate ML Models}
+
+... \\
+
+
+\subsection*{Genetic Algorithm}
+
+... \\
+
+
+\end{methods}
+
+
+
+
+\section*{ACKNOWLEDGMENTS}
+
+\begin{addendum}
+
+We acknowledge funding from the US Department of Energy SunShot program under contract #DOE DEEE005956. Use of the Center for Nanoscale Materials, an Office of Science user facility, was supported by the U.S. Department of Energy, Office of Science, Office of Basic Energy Sciences, under Contract No. DE-AC02-06CH11357. We gratefully acknowledge the computing resources provided on Bebop, a high-performance computing cluster operated by the Laboratory Computing Resource Center at Argonne National Laboratory. This research used resources of the National Energy Research Scientific Computing Center, a DOE Office of Science User Facility supported by the Office of Science of the U.S. Department of Energy under Contract No. DE-AC02-05CH11231. MYT would like to acknowledge support from the U.S. Department of Energy, Office of Science, Office of Workforce Development for Teachers and Scientists (WDTS) under the Science Undergraduate Laboratory Internship (SULI) program. MJD was was supported by the U. S. Department of Energy , Office of Basic Energy Sciences, Division of Chemical Sciences, Geosciences, and Biosciences, under Contract No. DE-AC02-06CH11357.
+
+\subsection*{Author Contributions} M.K.Y.C., R.F.K. and A.M.K. conceived the idea. A.M.K., M.Y.T. and F.G.S. performed the DFT computations. A.M.K. and M.J.D. trained ML models. All authors contributed to the discussion and writing of the manuscript.
+
+\subsection*{Data Availability} DFT data and ML models are available from the corresponding author upon reasonable request.
+
+
+\subsection*{Additional Information}
+
+\item[Competing Interests] The authors declare no competing financial or non-financial interests.
+ 
+\item[Correspondence] Correspondence and requests for materials
+should be addressed to A.M.K. (email:amannodi@purdue.edu).
+\end{addendum}
+
+
+
+
+
+\section*{REFERENCES}
+
+\bibliographystyle{naturemag}
+\bibliography{mybibfile}
+
+
+
+
+\end{document}
