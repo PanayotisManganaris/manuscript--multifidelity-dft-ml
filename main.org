@@ -1,0 +1,156 @@
+
+* COMMENT Task
+basically use the existing genetic algorithm script by professor K.
+
+Study it, understand it. make pretty figures of and publish the results.
+
+then, get back to featurization and optimization/inverse design of crystal structures.
+* Introduction
+  :PROPERTIES:
+  :CUSTOM_ID: introduction
+  :CLASS: unnumbered
+  :END:
+...\\
+
+* RESULTS AND DISCUSSION
+  :PROPERTIES:
+  :CUSTOM_ID: results-and-discussion
+  :CLASS: unnumbered
+  :END:
+*Figure1:*\\
+Outline of work: HT-DFT Data Generation \(\rightarrow\) Descriptors and
+correlations \(\rightarrow\) Surrogate ML Models (NN, RFR, GPR)
+\(\rightarrow\) Inverse design using Genetic Algorithm \(\rightarrow\)
+Validation of promising compounds.\\
+*Figure2:*\\
+Quick visualization of PBE data + correlations with descriptors
+(reproduced from other paper?).\\
+*Figure3:*\\
+All surrogate ML model results:
+
+- RMSE vs training set size for NN, RFR and GPR, using composition only,
+  elemental only, and both together, for 4 properties: lattice constant,
+  decomposition energy, band gap, PV FOM.
+
+- Best RMSE values for each property for different ML techniques and
+  different descriptors
+
+- Parity plots for best ML models for each property
+
+\\
+*Figure4:*\\
+Genetic algorithm results:
+
+- Fitness score vs generation, stability only.
+
+- Fitness score vs generation, stability + band gap.
+
+- Fitness score vs generation, stability + band gap + FOM.
+
+- Performance of GA with NN/GPR/RFR and with comp/elem/comp+elem.\\
+
+*Figure5:*\\
+Validation using new DFT calculations on 10 compositions in 4x4x4
+supercell. DFT vs ML properties + band structure + absorption spectra.\\
+
+** ...
+   :PROPERTIES:
+   :CUSTOM_ID: section
+   :CLASS: unnumbered
+   :END:
+** ...
+   :PROPERTIES:
+   :CUSTOM_ID: section-1
+   :CLASS: unnumbered
+   :END:
+** Summary
+   :PROPERTIES:
+   :CUSTOM_ID: summary
+   :CLASS: unnumbered
+   :END:
+...\\
+
+* METHODS
+  :PROPERTIES:
+  :CUSTOM_ID: methods
+  :CLASS: unnumbered
+  :END:
+** DFT Details
+   :PROPERTIES:
+   :CUSTOM_ID: dft-details
+   :CLASS: unnumbered
+   :END:
+...\\
+
+** Surrogate ML Models
+   :PROPERTIES:
+   :CUSTOM_ID: surrogate-ml-models
+   :CLASS: unnumbered
+   :END:
+...\\
+
+** Genetic Algorithm
+   :PROPERTIES:
+   :CUSTOM_ID: genetic-algorithm
+   :CLASS: unnumbered
+   :END:
+...\\
+
+* ACKNOWLEDGMENTS
+  :PROPERTIES:
+  :CUSTOM_ID: acknowledgments
+  :CLASS: unnumbered
+  :END:
+
+We acknowledge funding from the US Department of Energy SunShot program
+under contract #DOE DEEE005956. Use of the Center for Nanoscale
+Materials, an Office of Science user facility, was supported by the U.S.
+Department of Energy, Office of Science, Office of Basic Energy
+Sciences, under Contract No. DE-AC02-06CH11357. We gratefully
+acknowledge the computing resources provided on Bebop, a
+high-performance computing cluster operated by the Laboratory Computing
+Resource Center at Argonne National Laboratory. This research used
+resources of the National Energy Research Scientific Computing Center, a
+DOE Office of Science User Facility supported by the Office of Science
+of the U.S. Department of Energy under Contract No. DE-AC02-05CH11231.
+MYT would like to acknowledge support from the U.S. Department of
+Energy, Office of Science, Office of Workforce Development for Teachers
+and Scientists (WDTS) under the Science Undergraduate Laboratory
+Internship (SULI) program. MJD was was supported by the U. S. Department
+of Energy , Office of Basic Energy Sciences, Division of Chemical
+Sciences, Geosciences, and Biosciences, under Contract No.
+DE-AC02-06CH11357.
+
+** Author Contributions
+   :PROPERTIES:
+   :CUSTOM_ID: author-contributions
+   :CLASS: unnumbered
+   :END:
+M.K.Y.C., R.F.K. and A.M.K. conceived the idea. A.M.K., M.Y.T. and
+F.G.S. performed the DFT computations. A.M.K. and M.J.D. trained ML
+models. All authors contributed to the discussion and writing of the
+manuscript.
+
+** Data Availability
+   :PROPERTIES:
+   :CUSTOM_ID: data-availability
+   :CLASS: unnumbered
+   :END:
+DFT data and ML models are available from the corresponding author upon
+reasonable request.
+
+** Additional Information
+   :PROPERTIES:
+   :CUSTOM_ID: additional-information
+   :CLASS: unnumbered
+   :END:
+The authors declare no competing financial or non-financial interests.
+
+Correspondence and requests for materials should be addressed to A.M.K.
+(email:amannodi@purdue.edu).
+
+* REFERENCES
+  :PROPERTIES:
+  :CUSTOM_ID: references
+  :CLASS: unnumbered
+  :END:
