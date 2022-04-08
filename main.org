@@ -1,15 +1,132 @@
+#+latex_header:%% Template for a preprint Letter or Article for submission
+#+latex_header:%% to the journal Nature.
+#+latex_header:%% Written by Peter Czoschke, 26 February 2004
+#+latex_header:%%
+#+latex_header:
+#+latex_header:%\documentclass[aip]{nature}
+#+latex_header:
+#+latex_header:%\documentclass[]{article}
+#+latex_header:
+#+latex_header:\documentclass[]{revtex4-2}
+#+latex_header:
+#+latex_header:% aip, onecolumn, amsmath, amssymb, reprint]{revtex4-1}
+#+latex_header:
+#+latex_header:%{revtex4-1}
+#+latex_header:
+#+latex_header:\usepackage{graphicx}% Include figure files
+#+latex_header:\usepackage{dcolumn}% Align table columns on decimal point
+#+latex_header:\usepackage{bm}% bold math
+#+latex_header:%\usepackage[mathlines]{lineno}% Enable numbering of text and display math
+#+latex_header:%\linenumbers\relax % Commence numbering lines
+
+#+latex_header:\usepackage[utf8]{inputenc}
+#+latex_header:\usepackage[T1]{fontenc}
+#+latex_header:\usepackage{mathptmx}
+
+#+latex_header:%\usepackage{multicol}
+#+latex_header:\usepackage[export]{adjustbox}
+
+#+latex_header:\usepackage{abstract}
+#+latex_header:\usepackage{graphicx}
+#+latex_header:\usepackage{caption}
+#+latex_header:\usepackage{amsmath}
+#+latex_header:\usepackage{amsthm}
+#+latex_header:\usepackage{amsfonts}
+#+latex_header:%\usepackage{float}
+#+latex_header:\usepackage{sidecap}
+#+latex_header:\usepackage{mathtools}
+#+latex_header:\usepackage{adjustbox}
+#+latex_header:\usepackage{ upgreek }
+
+#+latex_header:\usepackage{longtable}
+#+latex_header:\usepackage{wrapfig}
+#+latex_header:\usepackage{rotating}
+#+latex_header:\usepackage[normalem]{ulem}
+
+#+latex_header:\usepackage{fullpage}
+#+latex_header:\newcommand{\ssection}[1]{%
+#+latex_header:\section[#1]{\centering\normalfont\scshape #1}}
+#+latex_header:\newcommand{\ssubsection}[1]{%
+#+latex_header:\subsection[#1]{\bfseries\normalfont\scshape #1}}
+#+latex_header:\newcommand{\ssubsubsection}[1]{%
+#+latex_header:\ssubsubsection[#1]{\bfseries\normalfont\scshape #1}}
+
+#+latex_header:\renewcommand{\theequation}{\arabic{equation}}
+
+#+latex_header:\usepackage{soul,xcolor}
+#+latex_header:\usepackage{amssymb}
+#+latex_header:\usepackage{capt-of}
+#+latex_header:\usepackage{hyperref}
+#+latex_header:\hypersetup{
+#+latex_header: pdfauthor={},
+#+latex_header: pdftitle={},
+#+latex_header: pdfkeywords={},
+#+latex_header: pdfsubject={},
+#+latex_header: pdfcreator={Emacs 29.0.50 (Org mode 9.5.2)},
+#+TITLE: Combining High-Throughput Computations, Surrogate Models, and Genetic Algorithms for Discovering Novel Halide Perovskites
+#+DATE: \today
+#+begin_export latex
+\author{Panayotis Manganaris, Jiaqi, Yang, Arun Mannodi-Kanakkithodi}
+ \email{amannodi@purdue.edu}
+\affiliation{School of Materials Engineering, Purdue University, West Lafayette, Indiana 47907, USA}%
+
+\maketitle
+
+\begin{abstract}
+
+\textbf{
+The ability to predict the likelihood of impurity incorporation and
+their electronic energy levels in semiconductors is crucial for
+controlling its conductivity, and thus the semiconductor's performance
+in solar cells, photodiodes, and optoelectronics. The difficulty and
+expense of experimental and computational determination of impurity
+levels makes a data-driven machine learning approach appropriate. In
+this work, we show that a density functional theory-generated dataset
+of impurities in Cd-based chalcogenides CdTe, CdSe, and CdS can lead
+to accurate and generalizable predictive models of defect
+properties. By converting any \textit{semiconductor + impurity} system
+into a set of numerical descriptors, regression models are developed
+for the impurity formation enthalpy and charge transition
+levels. These regression models can subsequently predict impurity
+properties in mixed anion CdX compounds (where X is a combination of
+Te, Se and S) fairly accurately, proving that although trained only on
+the end points, they are applicable to intermediate compositions. We
+make machine-learned predictions of the Fermi-level-dependent
+formation energies of hundreds of possible impurities in 5
+chalcogenide compounds, and we suggest a list of impurities which can
+shift the equilibrium Fermi level in the semiconductor as determined
+by the dominant intrinsic defects. These `dominating' impurities as
+predicted by machine learning compare well with DFT predictions,
+revealing the power of machine-learned models in the quick screening
+of impurities likely to affect the optoelectronic behavior of
+semiconductors.
+}
+
+\end{abstract}
+#+end_export
 * Introduction
-  :PROPERTIES:
-  :CUSTOM_ID: introduction
-  :CLASS: unnumbered
-  :END:
-...\\
+:PROPERTIES:
+:CUSTOM_ID: introduction
+:CLASS: unnumbered
+:END:
+Basic outline, structure and properties.} (a) General outline of
+materials design process leading to ML-driven prediction of
+properties based on DFT data and intermediate step of converting
+materials to numerical descriptors. (b) The Zinc Blende structure
+adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue and
+Te/Se/S atoms in red. The unit cell has been indicated with dashed
+lines. (c) Comparison of band gaps computed at the PBE and HSE06
+levels of theory with reported experimental values
+\cite{Expt_gap1,Expt_gap2}, for CdTe, CdSe, CdS,
+CdTe$_{0.5}$Se$_{0.5}$ and CdSe$_{0.5}$S$_{0.5}$. (d) Outline of the
+DFT and ML driven prediction of properties of impurities in Cd-based
+chalcogenides.}
 
 * RESULTS AND DISCUSSION
-  :PROPERTIES:
-  :CUSTOM_ID: results-and-discussion
-  :CLASS: unnumbered
-  :END:
+:PROPERTIES:
+:CUSTOM_ID: results-and-discussion
+:CLASS: unnumbered
+:END:
 *Figure1:*\\
 Outline of work: HT-DFT Data Generation \(\rightarrow\) Descriptors and
 correlations \(\rightarrow\) Surrogate ML Models (NN, RFR, GPR)
@@ -46,41 +163,56 @@ Genetic algorithm results:
 Validation using new DFT calculations on 10 compositions in 4x4x4
 supercell. DFT vs ML properties + band structure + absorption spectra.\\
 
-** ...
-   :PROPERTIES:
-   :CUSTOM_ID: section
-   :CLASS: unnumbered
-   :END:
-** ...
-   :PROPERTIES:
-   :CUSTOM_ID: section-1
-   :CLASS: unnumbered
-   :END:
+** subsection 2
+| *Dataset*                  | *Regression Method* | *Elemental properties* | *Unit cell defect properties* | *Elemental + Unit cell defect properties* |
+|----------------------------+---------------------+------------------------+-------------------------------+-------------------------------------------|
+|                            |                     |                        |                               |                                           |
+|                            | RFR                 | 0.40                   | 0.20                          | 0.17                                      |
+| Training                   | KRR                 | 0.40                   | 0.30                          | 0.20                                      |
+|                            | LASSO               | 0.62                   | 0.50                          | 0.44                                      |
+|                            |                     |                        |                               |                                           |
+|                            |                     |                        |                               |                                           |
+|                            | RFR                 | 0.65                   | 0.45                          | 0.38                                      |
+| Test                       | KRR                 | 0.68                   | 0.40                          | 0.32                                      |
+|                            | LASSO               | 0.75                   | 0.52                          | 0.47                                      |
+|                            |                     |                        |                               |                                           |
+|                            |                     |                        |                               |                                           |
+|                            | RFR                 | 0.84                   | 0.57                          | 0.52                                      |
+| CdTe\(_{0.5}\)Se\(_{0.5}\) | KRR                 | 0.80                   | 0.65                          | 0.57                                      |
+|                            | LASSO               | 0.95                   | 0.73                          | 0.65                                      |
+|                            |                     |                        |                               |                                           |
+|                            |                     |                        |                               |                                           |
+|                            | RFR                 | 0.86                   | 0.63                          | 0.57                                      |
+| CdSe\(_{0.5}\)S\(_{0.5}\)  | KRR                 | 0.75                   | 0.68                          | 0.70                                      |
+|                            | LASSO               | 0.92                   | 0.70                          | 0.72                                      |
+|                            |                     |                        |                               |                                           |
+
+
 ** Summary
-   :PROPERTIES:
-   :CUSTOM_ID: summary
-   :CLASS: unnumbered
-   :END:
+:PROPERTIES:
+:CUSTOM_ID: summary
+:CLASS: unnumbered
+:END:
 ...\\
 
 * METHODS
-  :PROPERTIES:
-  :CUSTOM_ID: methods
-  :CLASS: unnumbered
-  :END:
+:PROPERTIES:
+:CUSTOM_ID: methods
+:CLASS: unnumbered
+:END:
 ** DFT Details
-   :PROPERTIES:
-   :CUSTOM_ID: dft-details
-   :CLASS: unnumbered
-   :END:
+:PROPERTIES:
+:CUSTOM_ID: dft-details
+:CLASS: unnumbered
+:END:
 ...\\
 *** TODO Chemical Featurization
 
 ** Surrogate Modeling Perovskite Properties
-   :PROPERTIES:
-   :CUSTOM_ID: surrogate-ml-models
-   :CLASS: unnumbered
-   :END:
+:PROPERTIES:
+:CUSTOM_ID: surrogate-ml-models
+:CLASS: unnumbered
+:END:
 *** Objectives
 Our objectives are two fold:
 
@@ -192,17 +324,17 @@ repeated.
 Additionally/Alternatively,
 
 ** Genetic Algorithm
-   :PROPERTIES:
-   :CUSTOM_ID: genetic-algorithm
-   :CLASS: unnumbered
-   :END:
+:PROPERTIES:
+:CUSTOM_ID: genetic-algorithm
+:CLASS: unnumbered
+:END:
 ...\\
 
 * ACKNOWLEDGMENTS
-  :PROPERTIES:
-  :CUSTOM_ID: acknowledgments
-  :CLASS: unnumbered
-  :END:
+:PROPERTIES:
+:CUSTOM_ID: acknowledgments
+:CLASS: unnumbered
+:END:
 
 We acknowledge funding from the US Department of Energy SunShot program
 under contract #DOE DEEE005956. Use of the Center for Nanoscale
@@ -224,37 +356,37 @@ Sciences, Geosciences, and Biosciences, under Contract No.
 DE-AC02-06CH11357.
 
 ** Author Contributions
-   :PROPERTIES:
-   :CUSTOM_ID: author-contributions
-   :CLASS: unnumbered
-   :END:
+:PROPERTIES:
+:CUSTOM_ID: author-contributions
+:CLASS: unnumbered
+:END:
 M.K.Y.C., R.F.K. and A.M.K. conceived the idea. A.M.K., M.Y.T. and
 F.G.S. performed the DFT computations. A.M.K. and M.J.D. trained ML
 models. All authors contributed to the discussion and writing of the
 manuscript.
 
 ** Data Availability
-   :PROPERTIES:
-   :CUSTOM_ID: data-availability
-   :CLASS: unnumbered
-   :END:
+:PROPERTIES:
+:CUSTOM_ID: data-availability
+:CLASS: unnumbered
+:END:
 DFT data and ML models are available from the corresponding author upon
 reasonable request.
 
 ** Additional Information
-   :PROPERTIES:
-   :CUSTOM_ID: additional-information
-   :CLASS: unnumbered
-   :END:
+:PROPERTIES:
+:CUSTOM_ID: additional-information
+:CLASS: unnumbered
+:END:
 The authors declare no competing financial or non-financial interests.
 
 Correspondence and requests for materials should be addressed to A.M.K.
 (email:amannodi@purdue.edu).
 
 * REFERENCES
-  :PROPERTIES:
-  :CUSTOM_ID: references
-  :CLASS: unnumbered
-  :END:
+:PROPERTIES:
+:CUSTOM_ID: references
+:CLASS: unnumbered
+:END:
 bibliographystyle:authordate1
 bibliography:~/org/bibliotex/bibliotex.bib
