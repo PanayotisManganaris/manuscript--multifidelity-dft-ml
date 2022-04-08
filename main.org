@@ -64,16 +64,15 @@
 #+latex_header: pdfsubject={},
 #+latex_header: pdfcreator={Emacs 29.0.50 (Org mode 9.5.2)},
 #+TITLE: Combining High-Throughput Computations, Surrogate Models, and Genetic Algorithms for Discovering Novel Halide Perovskites
-#+DATE: \today
 #+begin_export latex
 \author{Panayotis Manganaris, Jiaqi, Yang, Arun Mannodi-Kanakkithodi}
  \email{amannodi@purdue.edu}
 \affiliation{School of Materials Engineering, Purdue University, West Lafayette, Indiana 47907, USA}%
+\date{\today}
 
 \maketitle
 
 \begin{abstract}
-
 \textbf{
 The ability to predict the likelihood of impurity incorporation and
 their electronic energy levels in semiconductors is crucial for
@@ -101,26 +100,18 @@ revealing the power of machine-learned models in the quick screening
 of impurities likely to affect the optoelectronic behavior of
 semiconductors.
 }
-
 \end{abstract}
 #+end_export
 * Introduction
-:PROPERTIES:
-:CUSTOM_ID: introduction
-:CLASS: unnumbered
-:END:
-Basic outline, structure and properties.} (a) General outline of
-materials design process leading to ML-driven prediction of
-properties based on DFT data and intermediate step of converting
-materials to numerical descriptors. (b) The Zinc Blende structure
-adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue and
-Te/Se/S atoms in red. The unit cell has been indicated with dashed
-lines. (c) Comparison of band gaps computed at the PBE and HSE06
-levels of theory with reported experimental values
-\cite{Expt_gap1,Expt_gap2}, for CdTe, CdSe, CdS,
-CdTe$_{0.5}$Se$_{0.5}$ and CdSe$_{0.5}$S$_{0.5}$. (d) Outline of the
-DFT and ML driven prediction of properties of impurities in Cd-based
-chalcogenides.}
+  :PROPERTIES:
+  :CUSTOM_ID: introduction
+  :CLASS: unnumbered
+  :END:
+...\\
+
+#+caption: \label{fig:outline} \textbf{Basic outline, structure and properties.} (a) General outline of materials design process leading to ML-driven prediction of properties based on DFT data and intermediate step of converting materials to numerical descriptors. (b) The Zinc Blende structure adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue and Te/Se/S atoms in red. The unit cell has been indicated with dashed lines. (c) Comparison of band gaps computed at the PBE and HSE06 levels of theory with reported experimental values \cite{Expt_gap1,Expt_gap2}, for CdTe, CdSe, CdS, CdTe$_{0.5}$Se$_{0.5}$ and CdSe$_{0.5}$S$_{0.5}$. (d) Outline of the DFT and ML driven prediction of properties of impurities in Cd-based chalcogenides.}
+#+attr_latex: scale=0.75
+file:Figure1.pdf
 
 * RESULTS AND DISCUSSION
 :PROPERTIES:
@@ -163,7 +154,16 @@ Genetic algorithm results:
 Validation using new DFT calculations on 10 compositions in 4x4x4
 supercell. DFT vs ML properties + band structure + absorption spectra.\\
 
-** subsection 2
+** ...
+   :PROPERTIES:
+   :CUSTOM_ID: section
+   :CLASS: unnumbered
+   :END:
+** ...
+   :PROPERTIES:
+   :CUSTOM_ID: section-1
+   :CLASS: unnumbered
+   :END:
 | *Dataset*                  | *Regression Method* | *Elemental properties* | *Unit cell defect properties* | *Elemental + Unit cell defect properties* |
 |----------------------------+---------------------+------------------------+-------------------------------+-------------------------------------------|
 |                            |                     |                        |                               |                                           |
@@ -187,7 +187,6 @@ supercell. DFT vs ML properties + band structure + absorption spectra.\\
 |                            | LASSO               | 0.92                   | 0.70                          | 0.72                                      |
 |                            |                     |                        |                               |                                           |
 
-
 ** Summary
 :PROPERTIES:
 :CUSTOM_ID: summary
@@ -206,6 +205,16 @@ supercell. DFT vs ML properties + band structure + absorption spectra.\\
 :CLASS: unnumbered
 :END:
 ...\\
+\[\label{eqn-1}
+\begin{multlined}
+E^f(q,E$_{F}$) = E(D$^{q}$) - E(CdX) + \mu + q(E$_{F}$ + E$_{vbm}$) + E_{corr}
+\end{multlined}\]
+
+\[\label{eqn-2}
+\begin{multlined}
+{\epsilon}(q_1/q_2) = \frac{E^{f}(q_{1},E_F=0) - E^{f}(q_{2},E_F=0)}{q_{2}-q_{1}}
+\end{multlined}\]
+
 *** TODO Chemical Featurization
 
 ** Surrogate Modeling Perovskite Properties
