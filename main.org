@@ -1,115 +1,61 @@
-#+latex_header:%% Template for a preprint Letter or Article for submission
-#+latex_header:%% to the journal Nature.
-#+latex_header:%% Written by Peter Czoschke, 26 February 2004
-#+latex_header:%%
+#+options: ':nil *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline author:t broken-links:nil c:nil creator:nil
+#+options: d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t num:nil p:nil pri:nil prop:nil stat:t tags:t
+#+options: tasks:t tex:t timestamp:t title:nil toc:nil todo:t |:t
+#+TITLE: Combining High-Throughput Computations, Surrogate Models, and
+#+TITLE: Genetic Algorithms for Discovering Novel Halide Perovskites
+#+language: en
+#+select_tags: export
+#+exclude_tags: noexport
+#+creator: Emacs 29.0.50 (Org mode 9.5.2)
+#+cite_export:
+
+#+latex_class: revtex
+#+latex_class_options: [preprint]
 #+latex_header:
-#+latex_header:%\documentclass[aip]{nature}
-#+latex_header:
-#+latex_header:%\documentclass[]{article}
-#+latex_header:
-#+latex_header:\documentclass[]{revtex4-2}
-#+latex_header:
-#+latex_header:% aip, onecolumn, amsmath, amssymb, reprint]{revtex4-1}
-#+latex_header:
-#+latex_header:%{revtex4-1}
-#+latex_header:
-#+latex_header:\usepackage{graphicx}% Include figure files
-#+latex_header:\usepackage{dcolumn}% Align table columns on decimal point
-#+latex_header:\usepackage{bm}% bold math
-#+latex_header:%\usepackage[mathlines]{lineno}% Enable numbering of text and display math
-#+latex_header:%\linenumbers\relax % Commence numbering lines
+#+latex_header_extra:
+#+description:
+#+keywords:
+#+subtitle:
+#+latex_compiler: pdflatex
+#+date: \today
+#+SETUPFILE: ~/org/revtex_header.org
 
-#+latex_header:\usepackage[utf8]{inputenc}
-#+latex_header:\usepackage[T1]{fontenc}
-#+latex_header:\usepackage{mathptmx}
+#+begin_abstract
+The ability to predict the likelihood of impurity incorporation and their electronic energy levels in
+semiconductors is crucial for controlling its conductivity, and thus the semiconductor's performance in solar
+cells, photodiodes, and optoelectronics. The difficulty and expense of experimental and computational
+determination of impurity levels makes a data-driven machine learning approach appropriate. In this work, we
+show that a density functional theory-generated dataset of impurities in Cd-based chalcogenides CdTe, CdSe,
+and CdS can lead to accurate and generalizable predictive models of defect properties. By converting any
+\textit{semiconductor + impurity} system into a set of numerical descriptors, regression models are developed
+for the impurity formation enthalpy and charge transition levels. These regression models can subsequently
+predict impurity properties in mixed anion CdX compounds (where X is a combination of Te, Se and S) fairly
+accurately, proving that although trained only on the end points, they are applicable to intermediate
+compositions. We make machine-learned predictions of the Fermi-level-dependent formation energies of hundreds
+of possible impurities in 5 chalcogenide compounds, and we suggest a list of impurities which can shift the
+equilibrium Fermi level in the semiconductor as determined by the dominant intrinsic defects. These
+`dominating' impurities as predicted by machine learning compare well with DFT predictions, revealing the
+power of machine-learned models in the quick screening of impurities likely to affect the optoelectronic
+behavior of semiconductors.
+#+end_abstract
 
-#+latex_header:%\usepackage{multicol}
-#+latex_header:\usepackage[export]{adjustbox}
-
-#+latex_header:\usepackage{abstract}
-#+latex_header:\usepackage{graphicx}
-#+latex_header:\usepackage{caption}
-#+latex_header:\usepackage{amsmath}
-#+latex_header:\usepackage{amsthm}
-#+latex_header:\usepackage{amsfonts}
-#+latex_header:%\usepackage{float}
-#+latex_header:\usepackage{sidecap}
-#+latex_header:\usepackage{mathtools}
-#+latex_header:\usepackage{adjustbox}
-#+latex_header:\usepackage{ upgreek }
-
-#+latex_header:\usepackage{longtable}
-#+latex_header:\usepackage{wrapfig}
-#+latex_header:\usepackage{rotating}
-#+latex_header:\usepackage[normalem]{ulem}
-
-#+latex_header:\usepackage{fullpage}
-#+latex_header:\newcommand{\ssection}[1]{%
-#+latex_header:\section[#1]{\centering\normalfont\scshape #1}}
-#+latex_header:\newcommand{\ssubsection}[1]{%
-#+latex_header:\subsection[#1]{\bfseries\normalfont\scshape #1}}
-#+latex_header:\newcommand{\ssubsubsection}[1]{%
-#+latex_header:\ssubsubsection[#1]{\bfseries\normalfont\scshape #1}}
-
-#+latex_header:\renewcommand{\theequation}{\arabic{equation}}
-
-#+latex_header:\usepackage{soul,xcolor}
-#+latex_header:\usepackage{amssymb}
-#+latex_header:\usepackage{capt-of}
-#+latex_header:\usepackage{hyperref}
-#+latex_header:\hypersetup{
-#+latex_header: pdfauthor={},
-#+latex_header: pdftitle={},
-#+latex_header: pdfkeywords={},
-#+latex_header: pdfsubject={},
-#+latex_header: pdfcreator={Emacs 29.0.50 (Org mode 9.5.2)},
-#+TITLE: Combining High-Throughput Computations, Surrogate Models, and Genetic Algorithms for Discovering Novel Halide Perovskites
 #+begin_export latex
-\author{Panayotis Manganaris, Jiaqi, Yang, Arun Mannodi-Kanakkithodi}
- \email{amannodi@purdue.edu}
-\affiliation{School of Materials Engineering, Purdue University, West Lafayette, Indiana 47907, USA}%
-\date{\today}
-
 \maketitle
 
-\begin{abstract}
-\textbf{
-The ability to predict the likelihood of impurity incorporation and
-their electronic energy levels in semiconductors is crucial for
-controlling its conductivity, and thus the semiconductor's performance
-in solar cells, photodiodes, and optoelectronics. The difficulty and
-expense of experimental and computational determination of impurity
-levels makes a data-driven machine learning approach appropriate. In
-this work, we show that a density functional theory-generated dataset
-of impurities in Cd-based chalcogenides CdTe, CdSe, and CdS can lead
-to accurate and generalizable predictive models of defect
-properties. By converting any \textit{semiconductor + impurity} system
-into a set of numerical descriptors, regression models are developed
-for the impurity formation enthalpy and charge transition
-levels. These regression models can subsequently predict impurity
-properties in mixed anion CdX compounds (where X is a combination of
-Te, Se and S) fairly accurately, proving that although trained only on
-the end points, they are applicable to intermediate compositions. We
-make machine-learned predictions of the Fermi-level-dependent
-formation energies of hundreds of possible impurities in 5
-chalcogenide compounds, and we suggest a list of impurities which can
-shift the equilibrium Fermi level in the semiconductor as determined
-by the dominant intrinsic defects. These `dominating' impurities as
-predicted by machine learning compare well with DFT predictions,
-revealing the power of machine-learned models in the quick screening
-of impurities likely to affect the optoelectronic behavior of
-semiconductors.
-}
-\end{abstract}
+\author{Panayotis Manganaris, Jiaqi Yang, Arun Mannodi Kanakkithodi}
+\altaffiliation{School of Materials Engineering, Purdue University, West Lafayette, Indiana 47907, USA}
+\email{amannodi@purdue.edu}
+\affiliation{Mannodi Research Group}
 #+end_export
+
 * Introduction
-  :PROPERTIES:
-  :CUSTOM_ID: introduction
-  :CLASS: unnumbered
-  :END:
+:PROPERTIES:
+:CUSTOM_ID: introduction
+:CLASS: unnumbered
+:END:
 ...\\
 
-#+caption: \label{fig:outline} \textbf{Basic outline, structure and properties.} (a) General outline of materials design process leading to ML-driven prediction of properties based on DFT data and intermediate step of converting materials to numerical descriptors. (b) The Zinc Blende structure adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue and Te/Se/S atoms in red. The unit cell has been indicated with dashed lines. (c) Comparison of band gaps computed at the PBE and HSE06 levels of theory with reported experimental values \cite{Expt_gap1,Expt_gap2}, for CdTe, CdSe, CdS, CdTe$_{0.5}$Se$_{0.5}$ and CdSe$_{0.5}$S$_{0.5}$. (d) Outline of the DFT and ML driven prediction of properties of impurities in Cd-based chalcogenides.}
+#+caption: \label{fig:outline} \textbf{Basic outline, structure and properties.} (a) General outline of materials design process leading to ML-driven prediction of properties based on DFT data and intermediate step of converting materials to numerical descriptors. (b) The Zinc Blende structure adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue and Te/Se/S atoms in red. The unit cell has been indicated with dashed lines. (c) Comparison of band gaps computed at the PBE and HSE06 levels of theory with reported experimental values [[cite:&kim-2014-cdses-nanow;&swanson-2017-co-sublim]], for CdTe, CdSe, CdS, CdTe_{0.5}Se_{0.5} and CdSe_{0.5}S_{0.5}. (d) Outline of the DFT and ML driven prediction of properties of impurities in Cd-based chalcogenides.}
 #+attr_latex: scale=0.75
 file:Figure1.pdf
 
@@ -155,15 +101,15 @@ Validation using new DFT calculations on 10 compositions in 4x4x4
 supercell. DFT vs ML properties + band structure + absorption spectra.\\
 
 ** ...
-   :PROPERTIES:
-   :CUSTOM_ID: section
-   :CLASS: unnumbered
-   :END:
+:PROPERTIES:
+:CUSTOM_ID: section
+:CLASS: unnumbered
+:END:
 ** ...
-   :PROPERTIES:
-   :CUSTOM_ID: section-1
-   :CLASS: unnumbered
-   :END:
+:PROPERTIES:
+:CUSTOM_ID: section-1
+:CLASS: unnumbered
+:END:
 | *Dataset*                  | *Regression Method* | *Elemental properties* | *Unit cell defect properties* | *Elemental + Unit cell defect properties* |
 |----------------------------+---------------------+------------------------+-------------------------------+-------------------------------------------|
 |                            |                     |                        |                               |                                           |
@@ -205,15 +151,6 @@ supercell. DFT vs ML properties + band structure + absorption spectra.\\
 :CLASS: unnumbered
 :END:
 ...\\
-\[\label{eqn-1}
-\begin{multlined}
-E^f(q,E$_{F}$) = E(D$^{q}$) - E(CdX) + \mu + q(E$_{F}$ + E$_{vbm}$) + E_{corr}
-\end{multlined}\]
-
-\[\label{eqn-2}
-\begin{multlined}
-{\epsilon}(q_1/q_2) = \frac{E^{f}(q_{1},E_F=0) - E^{f}(q_{2},E_F=0)}{q_{2}-q_{1}}
-\end{multlined}\]
 
 *** TODO Chemical Featurization
 
@@ -397,5 +334,5 @@ Correspondence and requests for materials should be addressed to A.M.K.
 :CUSTOM_ID: references
 :CLASS: unnumbered
 :END:
-bibliographystyle:authordate1
+bibliographystyle:apsrev4-2
 bibliography:~/org/bibliotex/bibliotex.bib

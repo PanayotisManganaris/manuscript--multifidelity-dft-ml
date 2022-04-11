@@ -1,6 +1,6 @@
-% Created 2022-04-08 Fri 14:39
+% Created 2022-04-11 Mon 15:29
 % Intended LaTeX compiler: pdflatex
-\documentclass[11pt]{article}
+\documentclass[preprint]{revtex4-2}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
@@ -9,71 +9,43 @@
 \usepackage{rotating}
 \usepackage[normalem]{ulem}
 \usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{capt-of}
-\usepackage{hyperref} %% need to eliminate this section from the automated export
-%% Template for a preprint Letter or Article for submission
-%% to the journal Nature.
-%% Written by Peter Czoschke, 26 February 2004
-%%
-
-%\documentclass[aip]{nature}
-
-%\documentclass[]{article}
-
-\documentclass[]{revtex4-2}
-
-% aip, onecolumn, amsmath, amssymb, reprint]{revtex4-1}
-
-%{revtex4-1}
-
-\usepackage{graphicx}% Include figure files
-\usepackage{dcolumn}% Align table columns on decimal point
-\usepackage{bm}% bold math
-%\usepackage[mathlines]{lineno}% Enable numbering of text and display math
-%\linenumbers\relax % Commence numbering lines
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{mathptmx}
-%\usepackage{multicol}
-\usepackage[export]{adjustbox}
-\usepackage{abstract}
-\usepackage{graphicx}
-\usepackage{caption}
-\usepackage{amsmath}
-\usepackage{amsthm}
-\usepackage{amsfonts}
-%\usepackage{float}
-\usepackage{sidecap}
-\usepackage{mathtools}
-\usepackage{adjustbox}
-\usepackage{ upgreek }
-\usepackage{longtable}
-\usepackage{wrapfig}
-\usepackage{rotating}
-\usepackage[normalem]{ulem}
-\usepackage{fullpage}
-\newcommand{\ssection}[1]{%
-\section[#1]{\centering\normalfont\scshape #1}}
-\newcommand{\ssubsection}[1]{%
-\subsection[#1]{\bfseries\normalfont\scshape #1}}
-\newcommand{\ssubsubsection}[1]{%
-\ssubsubsection[#1]{\bfseries\normalfont\scshape #1}}
-\renewcommand{\theequation}{\arabic{equation}}
-\usepackage{soul,xcolor}
 \usepackage{amssymb}
 \usepackage{capt-of}
 \usepackage{hyperref}
-\hypersetup{
-pdfauthor={},
-pdftitle={},
-pdfkeywords={},
-pdfsubject={},
-pdfcreator={Emacs 29.0.50 (Org mode 9.5.2)},
+
+%class options [society, journal, layout (preprint, reprint, twocolumn)]
+
+\usepackage[export]{adjustbox} %% expanded control over image, minipages, etc
+\usepackage{abstract} %% easy single col abstract in double col manuscript
+\usepackage{amsthm} %% formal mathematics environments
+\usepackage{amsfonts} %% formal math fonts
+\usepackage{mathptmx} %% ghostscript/postscript fonts and font loading options
+\usepackage{bm} %% bold math
+\usepackage{caption} %% full (expands on capt-of) control over appearance of float captions
+%\captionsetup{margin=10pt, font=small, labelfont=bf} %% (global preamble, local env)
+\usepackage{sidecap} %% control of figure and caption positioning and margin spill
+\usepackage{mathtools} %% bugfixing and additional tools for amsmath
+\usepackage{upgreek} %% easy lower and uppercase nonitalicized greek letters
+\usepackage[in]{fullpage} %% set of preset page margin configurations
+\usepackage{soul} %% spaceout and underline macros
+\usepackage{xcolor} %% text color macros
+\usepackage{natbib} %% required citation engine
+
+%\rnewcommand{\section}[1]{%
+%\section[#1]{\centering\normalfont\scshape #1}}
+%\renewcommand{\subsection}[1]{%
+%\subsection[#1]{\bfseries\normalfont\scshape #1}}
+%\renewcommand{\subsubsection}[1]{%
+%\subsubsection[#1]{\bfseries\normalfont\scshape #1}}
+%\renewcommand{\theequation}{\arabic{equation}}
+
+%\usepackage[mathlines]{lineno}% Enable numbering of text and display math
+%\linenumbers\relax % Commence numbering lines
+\author{Panayotis Manganaris}
 \date{\today}
 \title{Combining High-Throughput Computations, Surrogate Models, and Genetic Algorithms for Discovering Novel Halide Perovskites}
 \hypersetup{
- pdfauthor={},
+ pdfauthor={Panayotis Manganaris},
  pdftitle={Combining High-Throughput Computations, Surrogate Models, and Genetic Algorithms for Discovering Novel Halide Perovskites},
  pdfkeywords={},
  pdfsubject={},
@@ -81,57 +53,44 @@ pdfcreator={Emacs 29.0.50 (Org mode 9.5.2)},
  pdflang={English}}
 \begin{document}
 
-\maketitle
-\tableofcontents
-
-\author{Panayotis Manganaris, Jiaqi, Yang, Arun Mannodi-Kanakkithodi}
- \email{amannodi@purdue.edu}
-\affiliation{School of Materials Engineering, Purdue University, West Lafayette, Indiana 47907, USA}%
-\date{\today}
-
-\maketitle
-
 \begin{abstract}
-\textbf{
-The ability to predict the likelihood of impurity incorporation and
-their electronic energy levels in semiconductors is crucial for
-controlling its conductivity, and thus the semiconductor's performance
-in solar cells, photodiodes, and optoelectronics. The difficulty and
-expense of experimental and computational determination of impurity
-levels makes a data-driven machine learning approach appropriate. In
-this work, we show that a density functional theory-generated dataset
-of impurities in Cd-based chalcogenides CdTe, CdSe, and CdS can lead
-to accurate and generalizable predictive models of defect
-properties. By converting any \textit{semiconductor + impurity} system
-into a set of numerical descriptors, regression models are developed
-for the impurity formation enthalpy and charge transition
-levels. These regression models can subsequently predict impurity
-properties in mixed anion CdX compounds (where X is a combination of
-Te, Se and S) fairly accurately, proving that although trained only on
-the end points, they are applicable to intermediate compositions. We
-make machine-learned predictions of the Fermi-level-dependent
-formation energies of hundreds of possible impurities in 5
-chalcogenide compounds, and we suggest a list of impurities which can
-shift the equilibrium Fermi level in the semiconductor as determined
-by the dominant intrinsic defects. These `dominating' impurities as
-predicted by machine learning compare well with DFT predictions,
-revealing the power of machine-learned models in the quick screening
-of impurities likely to affect the optoelectronic behavior of
-semiconductors.
-}
+The ability to predict the likelihood of impurity incorporation and their electronic energy levels in
+semiconductors is crucial for controlling its conductivity, and thus the semiconductor's performance in solar
+cells, photodiodes, and optoelectronics. The difficulty and expense of experimental and computational
+determination of impurity levels makes a data-driven machine learning approach appropriate. In this work, we
+show that a density functional theory-generated dataset of impurities in Cd-based chalcogenides CdTe, CdSe,
+and CdS can lead to accurate and generalizable predictive models of defect properties. By converting any
+\textit{semiconductor + impurity} system into a set of numerical descriptors, regression models are developed
+for the impurity formation enthalpy and charge transition levels. These regression models can subsequently
+predict impurity properties in mixed anion CdX compounds (where X is a combination of Te, Se and S) fairly
+accurately, proving that although trained only on the end points, they are applicable to intermediate
+compositions. We make machine-learned predictions of the Fermi-level-dependent formation energies of hundreds
+of possible impurities in 5 chalcogenide compounds, and we suggest a list of impurities which can shift the
+equilibrium Fermi level in the semiconductor as determined by the dominant intrinsic defects. These
+`dominating' impurities as predicted by machine learning compare well with DFT predictions, revealing the
+power of machine-learned models in the quick screening of impurities likely to affect the optoelectronic
+behavior of semiconductors.
 \end{abstract}
-\section{Introduction}
-\label{sec:orgee9d0b6}
+
+\maketitle
+
+\author{Panayotis Manganaris, Jiaqi Yang, Arun Mannodi Kanakkithodi}
+\altaffiliation{School of Materials Engineering, Purdue University, West Lafayette, Indiana 47907, USA}
+\email{amannodi@purdue.edu}
+\affiliation{Mannodi Research Group}
+
+\section*{Introduction}
+\label{sec:org0a7de64}
 \ldots{}\\
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=.9\linewidth]{Figure1.pdf}
-\caption{\label{fig:outline} \textbf{Basic outline, structure and properties.} (a) General outline of materials design process leading to ML-driven prediction of properties based on DFT data and intermediate step of converting materials to numerical descriptors. (b) The Zinc Blende structure adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue and Te/Se/S atoms in red. The unit cell has been indicated with dashed lines. (c) Comparison of band gaps computed at the PBE and HSE06 levels of theory with reported experimental values \cite{Expt_gap1,Expt_gap2}, for CdTe, CdSe, CdS, CdTe\$\textsubscript{0.5}\$Se\(_{0.5}\) and CdSe\$\textsubscript{0.5}\$S\(_{0.5}\). (d) Outline of the DFT and ML driven prediction of properties of impurities in Cd-based chalcogenides.\}}
+\caption{\label{fig:outline} \textbf{Basic outline, structure and properties.} (a) General outline of materials design process leading to ML-driven prediction of properties based on DFT data and intermediate step of converting materials to numerical descriptors. (b) The Zinc Blende structure adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue and Te/Se/S atoms in red. The unit cell has been indicated with dashed lines. (c) Comparison of band gaps computed at the PBE and HSE06 levels of theory with reported experimental values \cite{kim-2014-cdses-nanow,swanson-2017-co-sublim}, for CdTe, CdSe, CdS, CdTe\textsubscript{0.5}Se\textsubscript{0.5} and CdSe\textsubscript{0.5}S\textsubscript{0.5}. (d) Outline of the DFT and ML driven prediction of properties of impurities in Cd-based chalcogenides.\}}
 \end{figure}
 
-\section{RESULTS AND DISCUSSION}
-\label{sec:orge645445}
+\section*{RESULTS AND DISCUSSION}
+\label{sec:org6f0ef2f}
 \textbf{Figure1:}\\
 Outline of work: HT-DFT Data Generation \(\rightarrow\) Descriptors and
 correlations \(\rightarrow\) Surrogate ML Models (NN, RFR, GPR)
@@ -172,10 +131,10 @@ Genetic algorithm results:
 Validation using new DFT calculations on 10 compositions in 4x4x4
 supercell. DFT vs ML properties + band structure + absorption spectra.\\
 
-\subsection{\ldots{}}
-\label{sec:org3258682}
-\subsection{\ldots{}}
-\label{sec:org46a4e72}
+\subsection*{\ldots{}}
+\label{sec:orgbe703e2}
+\subsection*{\ldots{}}
+\label{sec:org111386a}
 \begin{center}
 \begin{tabular}{llrrr}
 \textbf{Dataset} & \textbf{Regression Method} & \textbf{Elemental properties} & \textbf{Unit cell defect properties} & \textbf{Elemental + Unit cell defect properties}\\
@@ -203,32 +162,23 @@ CdSe\(_{0.5}\)S\(_{0.5}\) & KRR & 0.75 & 0.68 & 0.70\\
 \end{tabular}
 \end{center}
 
-\subsection{Summary}
-\label{sec:org162439a}
+\subsection*{Summary}
+\label{sec:org196b848}
 \ldots{}\\
 
-\section{METHODS}
-\label{sec:org4bb5fe8}
-\subsection{DFT Details}
-\label{sec:orgd03eae7}
+\section*{METHODS}
+\label{sec:org69a7a95}
+\subsection*{DFT Details}
+\label{sec:orgc3523f4}
 \ldots{}\\
-\[\label{eqn-1}
-\begin{multlined}
-E^f(q,E$_{F}$) = E(D$^{q}$) - E(CdX) + \mu + q(E$_{F}$ + E$_{vbm}$) + E_{corr}
-\end{multlined}\]
 
-\[\label{eqn-2}
-\begin{multlined}
-{\epsilon}(q_1/q_2) = \frac{E^{f}(q_{1},E_F=0) - E^{f}(q_{2},E_F=0)}{q_{2}-q_{1}}
-\end{multlined}\]
+\subsubsection*{{\bfseries\sffamily TODO} Chemical Featurization}
+\label{sec:orge3449e8}
 
-\subsubsection{{\bfseries\sffamily TODO} Chemical Featurization}
-\label{sec:org783ad83}
-
-\subsection{Surrogate Modeling Perovskite Properties}
-\label{sec:org8638558}
-\subsubsection{Objectives}
-\label{sec:orge573b93}
+\subsection*{Surrogate Modeling Perovskite Properties}
+\label{sec:orgf558361}
+\subsubsection*{Objectives}
+\label{sec:org563dec5}
 Our objectives are two fold:
 
 First, we aim to accurately predict performance-relevant Perovskite
@@ -269,8 +219,8 @@ These are certainly not the only groups of dependent samples
 potentially generated by these experiments, but they are the most
 noticeable in the structure of the multi-fidelity sample set as we
 have constructed it.
-\subsubsection{Considerations}
-\label{sec:org8d694c8}
+\subsubsection*{Considerations}
+\label{sec:orgcba76cf}
 We expect that perovskites of a given alloy class and of a given
 hybrid-organic/inorganic status will perform significantly
 differently, in all respects, to Perovskites of a another class or
@@ -302,8 +252,8 @@ best performing parameters. These models are finally validated against
 the test sets originally split off from the sample in \textbf{both their
 extrapolative ability and consistency across groups.}
 
-\subsubsection{Model Optimization Details}
-\label{sec:orgb365103}
+\subsubsection*{Model Optimization Details}
+\label{sec:org38fe2c8}
 The rigorous hyper-Parameter Optimization (HPO) of any feature
 engineering and modeling pipeline is a problem discussed extensively
 in the literature. HPO approaches can be broadly separated into
@@ -340,12 +290,12 @@ repeated.
 
 Additionally/Alternatively,
 
-\subsection{Genetic Algorithm}
-\label{sec:org77f6fec}
+\subsection*{Genetic Algorithm}
+\label{sec:org1acc6d6}
 \ldots{}\\
 
-\section{ACKNOWLEDGMENTS}
-\label{sec:org0f55089}
+\section*{ACKNOWLEDGMENTS}
+\label{sec:orgc816b25}
 We acknowledge funding from the US Department of Energy SunShot program
 under contract \#DOE DEEE005956. Use of the Center for Nanoscale
 Materials, an Office of Science user facility, was supported by the U.S.
@@ -365,27 +315,27 @@ of Energy , Office of Basic Energy Sciences, Division of Chemical
 Sciences, Geosciences, and Biosciences, under Contract No.
 DE-AC02-06CH11357.
 
-\subsection{Author Contributions}
-\label{sec:orgade9ce1}
+\subsection*{Author Contributions}
+\label{sec:org587b570}
 M.K.Y.C., R.F.K. and A.M.K. conceived the idea. A.M.K., M.Y.T. and
 F.G.S. performed the DFT computations. A.M.K. and M.J.D. trained ML
 models. All authors contributed to the discussion and writing of the
 manuscript.
 
-\subsection{Data Availability}
-\label{sec:org8d52e0c}
+\subsection*{Data Availability}
+\label{sec:org500e4e7}
 DFT data and ML models are available from the corresponding author upon
 reasonable request.
 
-\subsection{Additional Information}
-\label{sec:orgbc6ab16}
+\subsection*{Additional Information}
+\label{sec:org83a0a6c}
 The authors declare no competing financial or non-financial interests.
 
 Correspondence and requests for materials should be addressed to A.M.K.
 (email:amannodi@purdue.edu).
 
-\section{REFERENCES}
-\label{sec:orga2443e3}
-\bibliographystyle{authordate1}
+\section*{REFERENCES}
+\label{sec:orgb9b5c59}
+\bibliographystyle{apsrev4-2}
 \bibliography{../../../org/bibliotex/bibliotex}
 \end{document}
