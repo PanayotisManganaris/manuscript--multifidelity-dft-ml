@@ -1,6 +1,6 @@
-% Created 2022-04-11 Mon 15:29
+% Created 2022-04-12 Tue 00:03
 % Intended LaTeX compiler: pdflatex
-\documentclass[preprint]{revtex4-2}
+\documentclass[aip, jmp, amsmath, amssymb, reprint]{revtex4-2}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
@@ -13,10 +13,8 @@
 \usepackage{capt-of}
 \usepackage{hyperref}
 
-%class options [society, journal, layout (preprint, reprint, twocolumn)]
-
+\usepackage{abstract} %% easy abstract environment (from frontmatter pkg "ltxfront")
 \usepackage[export]{adjustbox} %% expanded control over image, minipages, etc
-\usepackage{abstract} %% easy single col abstract in double col manuscript
 \usepackage{amsthm} %% formal mathematics environments
 \usepackage{amsfonts} %% formal math fonts
 \usepackage{mathptmx} %% ghostscript/postscript fonts and font loading options
@@ -26,18 +24,18 @@
 \usepackage{sidecap} %% control of figure and caption positioning and margin spill
 \usepackage{mathtools} %% bugfixing and additional tools for amsmath
 \usepackage{upgreek} %% easy lower and uppercase nonitalicized greek letters
-\usepackage[in]{fullpage} %% set of preset page margin configurations
 \usepackage{soul} %% spaceout and underline macros
 \usepackage{xcolor} %% text color macros
-\usepackage{natbib} %% required citation engine
+%\usepackage{natbib} %% required citation engine
 
-%\rnewcommand{\section}[1]{%
-%\section[#1]{\centering\normalfont\scshape #1}}
-%\renewcommand{\subsection}[1]{%
-%\subsection[#1]{\bfseries\normalfont\scshape #1}}
-%\renewcommand{\subsubsection}[1]{%
-%\subsubsection[#1]{\bfseries\normalfont\scshape #1}}
-%\renewcommand{\theequation}{\arabic{equation}}
+%% control margin configurations and visualize framing
+%\usepackage[showframe, %%Uncomment any one of the following lines to test
+%%scale=0.7, marginratio={1:1, 2:3}, ignoreall, %% default settings
+%%text={7in,10in},centering,
+%%margin=1.5in,
+%%total={6.5in,8.75in}, top=1.2in, left=0.9in, includefoot,
+%%height=10in,a5paper,hmargin={3cm,0.8in},
+%]{geometry}
 
 %\usepackage[mathlines]{lineno}% Enable numbering of text and display math
 %\linenumbers\relax % Commence numbering lines
@@ -53,6 +51,25 @@
  pdflang={English}}
 \begin{document}
 
+%revtex frontmatter conventions for quick recall via INCLUDE keyword
+\title{%
+Combining High-Throughput Computations, Surrogate Models, and\\
+Genetic Algorithms for Discovering Novel Halide Perovskites
+}
+%\thanks{A footnote to the article title}
+
+\author{Panayotis Manganaris}
+\author{Jiaqi Yang}
+\author{Arun \surname{Mannodi Kanakkithodi}}
+\email{amannodi@purdue.edu}
+\affiliation{%
+School of Materials Engineering,\\
+Purdue University, West Lafayette, Indiana 47907, USA
+}
+\collaboration{Mannodi Research Group}
+
+\date{\today}
+%INCLUDE before abstract environment
 \begin{abstract}
 The ability to predict the likelihood of impurity incorporation and their electronic energy levels in
 semiconductors is crucial for controlling its conductivity, and thus the semiconductor's performance in solar
@@ -74,23 +91,18 @@ behavior of semiconductors.
 
 \maketitle
 
-\author{Panayotis Manganaris, Jiaqi Yang, Arun Mannodi Kanakkithodi}
-\altaffiliation{School of Materials Engineering, Purdue University, West Lafayette, Indiana 47907, USA}
-\email{amannodi@purdue.edu}
-\affiliation{Mannodi Research Group}
-
 \section*{Introduction}
-\label{sec:org0a7de64}
+\label{sec:org865a612}
 \ldots{}\\
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=.9\linewidth]{Figure1.pdf}
-\caption{\label{fig:outline} \textbf{Basic outline, structure and properties.} (a) General outline of materials design process leading to ML-driven prediction of properties based on DFT data and intermediate step of converting materials to numerical descriptors. (b) The Zinc Blende structure adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue and Te/Se/S atoms in red. The unit cell has been indicated with dashed lines. (c) Comparison of band gaps computed at the PBE and HSE06 levels of theory with reported experimental values \cite{kim-2014-cdses-nanow,swanson-2017-co-sublim}, for CdTe, CdSe, CdS, CdTe\textsubscript{0.5}Se\textsubscript{0.5} and CdSe\textsubscript{0.5}S\textsubscript{0.5}. (d) Outline of the DFT and ML driven prediction of properties of impurities in Cd-based chalcogenides.\}}
+\caption{\label{fig:outline} \textbf{Basic outline, structure and properties.} (a) General outline of materials design process leading to ML-driven prediction of properties based on DFT data and intermediate step of converting materials to numerical descriptors. (b) The Zinc Blende structure adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue and Te/Se/S atoms in red. The unit cell has been indicated with dashed lines. (c) Comparison of band gaps computed at the PBE and HSE06 levels of theory with reported experimental values \cite{kim-2014-cdses-nanow,swanson-2017-co-sublim}, for CdTe, CdSe, CdS, CdTe\textsubscript{0.5}Se\textsubscript{0.5} and CdSe\textsubscript{0.5}S\textsubscript{0.5}. (d) Outline of the DFT and ML driven prediction of properties of impurities in Cd-based chalcogenides.}
 \end{figure}
 
 \section*{RESULTS AND DISCUSSION}
-\label{sec:org6f0ef2f}
+\label{sec:org626c859}
 \textbf{Figure1:}\\
 Outline of work: HT-DFT Data Generation \(\rightarrow\) Descriptors and
 correlations \(\rightarrow\) Surrogate ML Models (NN, RFR, GPR)
@@ -132,9 +144,9 @@ Validation using new DFT calculations on 10 compositions in 4x4x4
 supercell. DFT vs ML properties + band structure + absorption spectra.\\
 
 \subsection*{\ldots{}}
-\label{sec:orgbe703e2}
+\label{sec:org4170259}
 \subsection*{\ldots{}}
-\label{sec:org111386a}
+\label{sec:org5db9426}
 \begin{center}
 \begin{tabular}{llrrr}
 \textbf{Dataset} & \textbf{Regression Method} & \textbf{Elemental properties} & \textbf{Unit cell defect properties} & \textbf{Elemental + Unit cell defect properties}\\
@@ -163,22 +175,22 @@ CdSe\(_{0.5}\)S\(_{0.5}\) & KRR & 0.75 & 0.68 & 0.70\\
 \end{center}
 
 \subsection*{Summary}
-\label{sec:org196b848}
+\label{sec:org80d4da9}
 \ldots{}\\
 
 \section*{METHODS}
-\label{sec:org69a7a95}
+\label{sec:orgfbb6e29}
 \subsection*{DFT Details}
-\label{sec:orgc3523f4}
+\label{sec:org76df188}
 \ldots{}\\
 
 \subsubsection*{{\bfseries\sffamily TODO} Chemical Featurization}
-\label{sec:orge3449e8}
+\label{sec:orge92024f}
 
 \subsection*{Surrogate Modeling Perovskite Properties}
-\label{sec:orgf558361}
+\label{sec:org37b9f09}
 \subsubsection*{Objectives}
-\label{sec:org563dec5}
+\label{sec:org7627c5c}
 Our objectives are two fold:
 
 First, we aim to accurately predict performance-relevant Perovskite
@@ -220,7 +232,7 @@ potentially generated by these experiments, but they are the most
 noticeable in the structure of the multi-fidelity sample set as we
 have constructed it.
 \subsubsection*{Considerations}
-\label{sec:orgcba76cf}
+\label{sec:org4415583}
 We expect that perovskites of a given alloy class and of a given
 hybrid-organic/inorganic status will perform significantly
 differently, in all respects, to Perovskites of a another class or
@@ -253,7 +265,7 @@ the test sets originally split off from the sample in \textbf{both their
 extrapolative ability and consistency across groups.}
 
 \subsubsection*{Model Optimization Details}
-\label{sec:org38fe2c8}
+\label{sec:org7af28cb}
 The rigorous hyper-Parameter Optimization (HPO) of any feature
 engineering and modeling pipeline is a problem discussed extensively
 in the literature. HPO approaches can be broadly separated into
@@ -291,11 +303,11 @@ repeated.
 Additionally/Alternatively,
 
 \subsection*{Genetic Algorithm}
-\label{sec:org1acc6d6}
+\label{sec:org40ae1a1}
 \ldots{}\\
 
 \section*{ACKNOWLEDGMENTS}
-\label{sec:orgc816b25}
+\label{sec:orgb25047d}
 We acknowledge funding from the US Department of Energy SunShot program
 under contract \#DOE DEEE005956. Use of the Center for Nanoscale
 Materials, an Office of Science user facility, was supported by the U.S.
@@ -316,26 +328,26 @@ Sciences, Geosciences, and Biosciences, under Contract No.
 DE-AC02-06CH11357.
 
 \subsection*{Author Contributions}
-\label{sec:org587b570}
+\label{sec:orgcb86adb}
 M.K.Y.C., R.F.K. and A.M.K. conceived the idea. A.M.K., M.Y.T. and
 F.G.S. performed the DFT computations. A.M.K. and M.J.D. trained ML
 models. All authors contributed to the discussion and writing of the
 manuscript.
 
 \subsection*{Data Availability}
-\label{sec:org500e4e7}
+\label{sec:orgb7b7cac}
 DFT data and ML models are available from the corresponding author upon
 reasonable request.
 
 \subsection*{Additional Information}
-\label{sec:org83a0a6c}
+\label{sec:orgdcdcae6}
 The authors declare no competing financial or non-financial interests.
 
 Correspondence and requests for materials should be addressed to A.M.K.
 (email:amannodi@purdue.edu).
 
 \section*{REFERENCES}
-\label{sec:orgb9b5c59}
-\bibliographystyle{apsrev4-2}
+\label{sec:orgb452b37}
+\bibliographystyle{naturemag}
 \bibliography{../../../org/bibliotex/bibliotex}
 \end{document}

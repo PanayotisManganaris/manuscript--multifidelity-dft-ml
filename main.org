@@ -3,14 +3,14 @@
 #+options: tasks:t tex:t timestamp:t title:nil toc:nil todo:t |:t
 #+TITLE: Combining High-Throughput Computations, Surrogate Models, and
 #+TITLE: Genetic Algorithms for Discovering Novel Halide Perovskites
+#+AUTHOR: Panayotis Manganaris
 #+language: en
 #+select_tags: export
 #+exclude_tags: noexport
 #+creator: Emacs 29.0.50 (Org mode 9.5.2)
 #+cite_export:
-
 #+latex_class: revtex
-#+latex_class_options: [preprint]
+#+latex_class_options: [aip, jmp, amsmath, amssymb, reprint]
 #+latex_header:
 #+latex_header_extra:
 #+description:
@@ -19,7 +19,7 @@
 #+latex_compiler: pdflatex
 #+date: \today
 #+SETUPFILE: ~/org/revtex_header.org
-
+#+INCLUDE: ./frontmatter.org
 #+begin_abstract
 The ability to predict the likelihood of impurity incorporation and their electronic energy levels in
 semiconductors is crucial for controlling its conductivity, and thus the semiconductor's performance in solar
@@ -41,11 +41,6 @@ behavior of semiconductors.
 
 #+begin_export latex
 \maketitle
-
-\author{Panayotis Manganaris, Jiaqi Yang, Arun Mannodi Kanakkithodi}
-\altaffiliation{School of Materials Engineering, Purdue University, West Lafayette, Indiana 47907, USA}
-\email{amannodi@purdue.edu}
-\affiliation{Mannodi Research Group}
 #+end_export
 
 * Introduction
@@ -55,7 +50,18 @@ behavior of semiconductors.
 :END:
 ...\\
 
-#+caption: \label{fig:outline} \textbf{Basic outline, structure and properties.} (a) General outline of materials design process leading to ML-driven prediction of properties based on DFT data and intermediate step of converting materials to numerical descriptors. (b) The Zinc Blende structure adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue and Te/Se/S atoms in red. The unit cell has been indicated with dashed lines. (c) Comparison of band gaps computed at the PBE and HSE06 levels of theory with reported experimental values [[cite:&kim-2014-cdses-nanow;&swanson-2017-co-sublim]], for CdTe, CdSe, CdS, CdTe_{0.5}Se_{0.5} and CdSe_{0.5}S_{0.5}. (d) Outline of the DFT and ML driven prediction of properties of impurities in Cd-based chalcogenides.}
+#+CAPTION:\label{fig:outline} \textbf{Basic outline, structure and properties.}
+#+CAPTION:(a) General outline of materials design process leading to ML-driven
+#+CAPTION:prediction of properties based on DFT data and intermediate step of
+#+CAPTION:converting materials to numerical descriptors. (b) The Zinc Blende
+#+CAPTION:structure adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue
+#+CAPTION:and Te/Se/S atoms in red. The unit cell has been indicated with dashed
+#+CAPTION:lines. (c) Comparison of band gaps computed at the PBE and HSE06
+#+CAPTION:levels of theory with reported experimental values
+#+CAPTION:[[cite:&kim-2014-cdses-nanow;&swanson-2017-co-sublim]], for CdTe, CdSe,
+#+CAPTION:CdS, CdTe_{0.5}Se_{0.5} and CdSe_{0.5}S_{0.5}. (d) Outline of the DFT
+#+CAPTION:and ML driven prediction of properties of impurities in Cd-based
+#+CAPTION:chalcogenides.
 #+attr_latex: scale=0.75
 file:Figure1.pdf
 
@@ -334,5 +340,5 @@ Correspondence and requests for materials should be addressed to A.M.K.
 :CUSTOM_ID: references
 :CLASS: unnumbered
 :END:
-bibliographystyle:apsrev4-2
+bibliographystyle:naturemag
 bibliography:~/org/bibliotex/bibliotex.bib

@@ -1,0 +1,21 @@
+#+begin_export latex
+%revtex frontmatter conventions for quick recall via INCLUDE keyword
+\title{%
+Combining High-Throughput Computations, Surrogate Models, and\\
+Genetic Algorithms for Discovering Novel Halide Perovskites
+}
+%\thanks{A footnote to the article title}
+
+\author{Panayotis Manganaris}
+\author{Jiaqi Yang}
+\author{Arun \surname{Mannodi Kanakkithodi}}
+\email{amannodi@purdue.edu}
+\affiliation{%
+School of Materials Engineering,\\
+Purdue University, West Lafayette, Indiana 47907, USA
+}
+\collaboration{Mannodi Research Group}
+
+\date{\today}
+%INCLUDE before abstract environment
+#+end_export 
