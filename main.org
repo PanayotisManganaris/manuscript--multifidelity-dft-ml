@@ -76,18 +76,34 @@ cross-validation folds as well as on
 **** PBE Data
 #+caption: \label{fig:comp} Proportion of constituents present in dataset
 #+attr_latex: width 300
-[[file:Constituent_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Constituent_Representations.png]]
+[[file:Constituent_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/PBE_Constituent_Representations.png]]
 
 #+caption: \label{fig:group} Share of total data apportioned to each alloy group
 #+attr_latex: width 300
-[[file:Alloy_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Alloy_Representations.png]]
+[[file:Alloy_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/PBE_Alloy_Representations.png]]
 
 #+caption: \label{fig:groupcomp} Proportion of constituents present in each alloy group 
 #+attr_latex: width 300
-[[file:Constituent_Representations_per_Scheme.png]]
+[[file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/PBE_Constituent_Representations_per_Scheme.png]]
 
 **** HSE Data
-*** Univariant Analysis
+#+caption: \label{fig:comp} Proportion of constituents present in dataset
+#+attr_latex: width 300
+[[file:Constituent_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/HSE_Constituent_Representations.png]]
+
+#+caption: \label{fig:group} Share of total data apportioned to each alloy group
+#+attr_latex: width 300
+[[file:Alloy_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/HSE_Alloy_Representations.png]]
+
+#+caption: \label{fig:groupcomp} Proportion of constituents present in each alloy group 
+#+attr_latex: width 300
+[[file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/HSE_Constituent_Representations_per_Scheme.png]]
+
+*** Univariate Analysis
+The computational properties of interest are Perovskite Bandgap,
+Decomposition Energy (stability), and SpeSLME. appear to follow an
+approximately normal distribution Bandgap and
+
 ** Software Tools
 A couple of libraries are in development for easing the aggregation,
 accessing, sharing, and analysis of this data.  The database itself is
@@ -142,11 +158,6 @@ Validation of promising compounds.\\
 Validation using new DFT calculations on 10 compositions in 4x4x4
 supercell. DFT vs ML properties + band structure + absorption spectra.\\
 
-** ...
-:PROPERTIES:
-:CUSTOM_ID: section
-:CLASS: unnumbered
-:END:
 ** ...
 :PROPERTIES:
 :CUSTOM_ID: section-1
