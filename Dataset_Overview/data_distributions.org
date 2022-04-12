@@ -1,0 +1,251 @@
+#+options: ':nil *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline
+#+options: author:t broken-links:nil c:nil creator:nil
+#+options: d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t num:t
+#+options: p:nil pri:nil prop:nil stat:t tags:t tasks:t tex:t
+#+options: timestamp:t title:t toc:t todo:t |:t
+#+title: data_distributions
+#+date: <2022-04-12 Tue>
+#+author: Panayotis Manganaris
+#+email: panos.manganaris@gmail.com
+#+language: en
+#+select_tags: export
+#+exclude_tags: noexport
+#+creator: Emacs 29.0.50 (Org mode 9.5.2)
+#+cite_export:
+#+PROPERTY: header-args :session aikit :kernel aikit
+* dependencies
+#+begin_src jupyter-python :exports results :results raw drawer
+  %load_ext autoreload
+  %autoreload 2
+#+end_src
+
+#+RESULTS:
+: The autoreload extension is already loaded. To reload it, use:
+:   %reload_ext autoreload
+  
+#+begin_src jupyter-python :exports results :results raw drawer
+  import sys
+  sys.path.append("/home/panos/src/cmcl")
+  sys.path.append("/home/panos/src/yogi")
+  # featurization
+  from cmcl.data.frame import *
+  from cmcl.features.categories import Categories
+#+end_src
+
+#+RESULTS:
+
+#+begin_src jupyter-python :exports results :results raw drawer
+  # data tools
+  import sqlite3
+  import pandas as pd
+  import numpy as np
+  import matplotlib.pyplot as plt
+  from functools import partial
+#+end_src
+
+#+RESULTS:
+* load data
+#+begin_src jupyter-python :exports results :results raw drawer
+  sqlbase = """SELECT *
+              FROM mannodi_base"""
+  sqlalmora = """SELECT *
+                 FROM almora_agg"""
+  with sqlite3.connect("/home/panos/src/cmcl/cmcl/db/perovskites.db") as conn:
+      df = pd.read_sql(sqlbase, conn, index_col="index")
+      almora = pd.read_sql(sqlalmora, conn, index_col='index')
+#+end_src
+
+#+RESULTS:
+* Clean Data
+#+begin_src jupyter-python :exports results :results raw drawer
+  lookup = lookup.set_index("Formula")
+  df = df.set_index(["Formula", "sim_cell"], append=True)
+  almora = almora.set_index("Formula")
+#+end_src
+
+#+begin_src jupyter-python :exports results :results raw drawer
+  almora = almora.drop(almora.filter(regex="(^X|^B|^A|^[A-Z]+[a-z]?$)").columns, axis=1)
+  almora = almora.drop("Mixing", axis=1)
+#+end_src
+
+#+RESULTS:
+
+** manual subset index + subset constituents
+- drop formula with large lattice parameter difference between HSE and PBE (calculation to be rerun)
+- large structural deformation identified by observing cubicity metric -- well outside of 5-10% spec?
+#+begin_src jupyter-python :exports results :results raw drawer
+  df = df.drop(index=["Rb0.375Cs0.625GeBr3", "RbGeBr1.125Cl1.875", "K0.75Cs0.25GeI3", "K8Sn8I9Cl15"], level=1)
+  maincomp = df.ft.comp().iloc[:, :14:]
+  empcomp = df.ft.comp().loc[:, ["FA", "MA", "Cs", "Pb", "Sn", "I", "Br", "Cl"]]
+#+end_src
+
+#+RESULTS:
+
+** auto subset index
+#+begin_src jupyter-python :exports results :results raw drawer
+  size = df.index.isin(["2x2x2"], level="sim_cell")
+  #maincomp
+  maincomp = maincomp.collect.abx()
+  mcg = maincomp.groupby(level=0, axis=1).sum()
+  mvB, mvX, mvA, = mcg.A.isin([1, 8]), mcg.B.isin([1, 8]), mcg.X.isin([3, 24])
+  #subset indexes
+  mfocus = size*mvB*mvA*mvX
+#+end_src
+
+#+RESULTS:
+: /opt/miniconda3/envs/aikit/lib/python3.9/site-packages/pandas/core/computation/expressions.py:204: UserWarning: evaluating in Python space because the '*' operator is not supported by numexpr for the bool dtype, use '&' instead
+:   warnings.warn(
+
+** apply subsets
+#+begin_src jupyter-python :exports results :results raw drawer
+  mc = maincomp[mfocus]
+  ec = empcomp[efocus]
+  mys = df[mfocus]
+  eys = df[efocus] #only 56 compounds
+#+end_src
+
+#+RESULTS:
+
+* make and label shares
+#+begin_src jupyter-python :exports results :results raw drawer
+  mixlog = mc.groupby(level=0, axis=1).count()
+  mix = mixlog.pipe(Categories.logif, condition=lambda x: x>1, default="pure", catstring="_&_")
+  mix.name="mixing"
+  PBE_comp = mc.join(mix).set_index("mixing", append=True)
+  PBE_comp.columns = pd.MultiIndex.from_tuples(PBE_comp.columns)
+  HSE_comp = mc.reindex(index=df.dropna(how="any", axis=0).index)
+  HSE_comp = HSE_comp.join(mix).set_index("mixing", append=True)
+  HSE_comp.columns = pd.MultiIndex.from_tuples(HSE_comp.columns)
+#+end_src
+
+#+RESULTS:
+: /opt/miniconda3/envs/aikit/lib/python3.9/site-packages/pandas/core/reshape/merge.py:648: UserWarning: merging between different levels can give an unintended result (2 levels on the left,1 on the right)
+:   warnings.warn(msg, UserWarning)
+: /opt/miniconda3/envs/aikit/lib/python3.9/site-packages/pandas/core/reshape/merge.py:648: UserWarning: merging between different levels can give an unintended result (2 levels on the left,1 on the right)
+:   warnings.warn(msg, UserWarning)
+
+** alloy shares
+#+begin_src jupyter-python :exports results :results raw drawer
+  PBE_alloy_group = PBE_comp.groupby(level=["mixing"])
+  HSE_alloy_group = HSE_comp.groupby(level=["mixing"])
+  PBE_alloy_share = PBE_alloy_group.apply(len)
+  PBE_alloy_share.name=""
+  HSE_alloy_share = HSE_alloy_group.apply(len)
+  HSE_alloy_share.name=""
+#+end_src
+
+#+RESULTS:
+
+** total comp
+#+begin_src jupyter-python :exports results :results raw drawer :pandoc org
+  PBE_total = PBE_comp.count()
+  PBE_total.name = "Total"
+  HSE_total = HSE_comp.count()
+  HSE_total.name = "Total"
+#+end_src
+
+#+RESULTS:
+
+** comp per group
+#+begin_src jupyter-python :exports results :results raw drawer :pandoc org
+  PBE_total_group = PBE_alloy_group.count()
+  HSE_total_group = HSE_alloy_group.count()
+#+end_src
+
+#+RESULTS:
+
+* plot shares
+#+begin_src jupyter-python :exports results :results raw drawer
+  #mix fractions visualized
+  mydpi=192
+
+  #label functions
+  def absolute_value(val, series):
+      a  = np.round(val/100.*series.values.sum(), 0)
+      return int(a)
+  #font settings
+  titlefont = {'family': 'Arial', 'color': 'black', 'weight': 'bold', 'size': 32}
+  titlefont2 = {'family': 'Arial', 'weight': 'bold', 'size': 17}
+  labelfont = {'family': 'Arial', 'color': 'black', 'weight': 'normal', 'size': 30}
+  annotfont = {'family': 'Arial', 'color': 'black', 'weight': 'normal', 'size': 20}
+  annotfont2 = {'family': 'Arial', 'color': 'black', 'weight': 'normal', 'size': 14}
+#+end_src
+
+#+RESULTS:
+** PBE
+#+begin_src jupyter-python :exports results :results raw drawer
+  PBE_absolute_value = partial(absolute_value, series = PBE_alloy_share)
+  fig1, ax = plt.subplots(1,1, figsize=(1600/mydpi, 1600/mydpi), dpi=mydpi)
+  ax = PBE_alloy_share.plot.pie(ax=ax, autopct=PBE_absolute_value, textprops=annotfont)
+  ax.set_title("Alloy Representation", fontdict=titlefont)
+  ax.set_xlabel("", fontdict=labelfont)
+  ax.set_ylabel("")
+
+  fig2, ax = plt.subplots(1,1, figsize=(1600/mydpi, 1600/mydpi), dpi=mydpi)
+  ax = PBE_total.plot.pie(ax=ax, autopct=lambda x: f"{x:.2f}" + "%", pctdistance=0.8, textprops=annotfont)
+  ax.set_title("Constituent Representation", fontdict=titlefont)
+  ax.set_xlabel(ax.get_ylabel(), fontdict=labelfont)
+  ax.set_ylabel("")
+
+  fig3, axar = plt.subplots(2,2, figsize=(2400/mydpi, 2400/mydpi), dpi=mydpi)
+  axar = PBE_total_group.T.drop("B_&_X", axis=1).plot.pie(ax=axar, subplots=True, autopct=lambda x: f"{x:.2f}" + "%", pctdistance=0.8, radius=1.05, legend=False, textprops=annotfont2)
+  for ax in axar:
+      ax.set_xlabel(ax.get_ylabel(), fontdict=labelfont)
+      ax.set_ylabel("")
+  fig3.tight_layout()
+  fig3.suptitle("Constituent Representation\nby Alloy Scheme")
+
+  fig1.savefig("./PBE_Alloy_Representations.png", dpi = mydpi, transparent=True)
+  fig2.savefig("./PBE_Constituent_Representations.png", dpi = mydpi, transparent=True)
+  fig3.savefig("./PBE_Constituent_Representations_per_Scheme.png", dpi = mydpi, transparent=True)
+
+  plt.show()
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+#+attr_latex: :width 200
+[[file:./.ob-jupyter/5c7acae88cf6e59b47e9de4280b69275b9433db7.png]]
+[[file:./.ob-jupyter/cb12e84d33f431500707e715a45dea05a4c61a5f.png]]
+#+attr_latex: :width 400
+[[file:./.ob-jupyter/2c77861310f84747b920fe45775ca8b47b5f0c1f.png]]
+:END:
+
+** HSE
+#+begin_src jupyter-python :exports results :results raw drawer
+  HSE_absolute_value = partial(absolute_value, series = HSE_alloy_share)
+  fig1, ax = plt.subplots(1,1, figsize=(1600/mydpi, 1600/mydpi), dpi=mydpi)
+  ax = HSE_alloy_share.plot.pie(ax=ax, autopct=HSE_absolute_value, textprops=annotfont)
+  ax.set_title("Alloy Representation", fontdict=titlefont)
+  ax.set_xlabel("", fontdict=labelfont)
+  ax.set_ylabel("")
+
+  fig2, ax = plt.subplots(1,1, figsize=(1600/mydpi, 1600/mydpi), dpi=mydpi)
+  ax = HSE_total.plot.pie(ax=ax, autopct=lambda x: f"{x:.2f}" + "%", pctdistance=0.8, textprops=annotfont)
+  ax.set_title("Constituent Representation", fontdict=titlefont)
+  ax.set_xlabel(ax.get_ylabel(), fontdict=labelfont)
+  ax.set_ylabel("")
+
+  fig3, axar = plt.subplots(2,2, figsize=(2400/mydpi, 2400/mydpi), dpi=mydpi)
+  axar = HSE_total_group.T.plot.pie(ax=axar, subplots=True, autopct=lambda x: f"{x:.2f}" + "%", pctdistance=0.8, radius=1.05, legend=False, textprops=annotfont2)
+  for ax in axar:
+      ax.set_xlabel(ax.get_ylabel(), fontdict=labelfont)
+      ax.set_ylabel("")
+  fig3.tight_layout()
+  fig3.suptitle("Constituent Representation\nby Alloy Scheme")
+
+  fig1.savefig("./HSE_Alloy_Representations.png", dpi = mydpi, transparent=True)
+  fig2.savefig("./HSE_Constituent_Representations.png", dpi = mydpi, transparent=True)
+  fig3.savefig("./HSE_Constituent_Representations_per_Scheme.png", dpi = mydpi, transparent=True)
+
+  plt.show()
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+#+attr_latex: :width 200
+[[file:./.ob-jupyter/d6a27e25f9fdd741a60b97946aea76d2c40cce44.png]]
+[[file:./.ob-jupyter/bf6e656bcc74d4ac9a08eeb2743037f8fabb51da.png]]
+#+attr_latex: :width 400
+[[file:./.ob-jupyter/b151d95edbddd176090ef2277c5f08b992e40935.png]]
+:END:
