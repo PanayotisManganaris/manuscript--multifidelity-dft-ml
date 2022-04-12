@@ -38,18 +38,12 @@ equilibrium Fermi level in the semiconductor as determined by the dominant intri
 power of machine-learned models in the quick screening of impurities likely to affect the optoelectronic
 behavior of semiconductors.
 #+end_abstract
-
-#+begin_export latex
-\maketitle
-#+end_export
-
 * Introduction
 :PROPERTIES:
 :CUSTOM_ID: introduction
 :CLASS: unnumbered
 :END:
-...\\
-
+** Materials Design Pipeline
 #+CAPTION:\label{fig:outline} \textbf{Basic outline, structure and properties.}
 #+CAPTION:(a) General outline of materials design process leading to ML-driven
 #+CAPTION:prediction of properties based on DFT data and intermediate step of
@@ -64,6 +58,52 @@ behavior of semiconductors.
 #+CAPTION:chalcogenides.
 #+attr_latex: scale=0.75
 file:Figure1.pdf
+** Dataset Overview
+:PROPERTIES:
+:ID:       488ae3b9-d59f-4d7a-b44c-bb2c4b996fe3
+:END:
+*** Quick visualization of PBE data + correlations with descriptors
+(reproduced from other paper?).\\
+*** Distribution Analysis
+The design of this dataset provides an opportunity to assess the
+generalizability of Perovskite property models with respect to alloy
+group. It also provides an opportunity to investigate the statistical
+impact of constituent compounds on Perovskite property performance.
+
+This will be done by performing model optimization on random
+cross-validation folds as well as on 
+
+**** PBE Data
+#+caption: \label{fig:comp} Proportion of constituents present in dataset
+#+attr_latex: width 300
+[[file:Constituent_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Constituent_Representations.png]]
+
+#+caption: \label{fig:group} Share of total data apportioned to each alloy group
+#+attr_latex: width 300
+[[file:Alloy_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Alloy_Representations.png]]
+
+#+caption: \label{fig:groupcomp} Proportion of constituents present in each alloy group 
+#+attr_latex: width 300
+[[file:Constituent_Representations_per_Scheme.png]]
+
+**** HSE Data
+*** Univariant Analysis
+** Software Tools
+A couple of libraries are in development for easing the aggregation,
+accessing, sharing, and analysis of this data.  The database itself is
+packaged with "cmcl" at [[http://github.com/PanayotisManganaris/cmcl]].
+In this early stage of development, cmcl strives to provide an
+"inquisitive" interface to comprehensive chemical data feature
+computers in the style of the pandas API. At its current stage, it has
+been useful for extracting composition vectors from the formula
+strings identifying each compound we explored.
+
+Model development is performed using the intel distribution of python
+and SciKit Learn v0.24 and a standard distribution of Tensorflow both
+obtained from the anaconda repositories. A library of supplementary
+model evaluation tools (designed with particular attention to
+smoothing the use of Pandas in ML workflows) is being maintained in
+the "yogi" repository at [[http://github.com/PanayotisManganaris/yogi]]
 
 * RESULTS AND DISCUSSION
 :PROPERTIES:
@@ -75,11 +115,9 @@ Outline of work: HT-DFT Data Generation \(\rightarrow\) Descriptors and
 correlations \(\rightarrow\) Surrogate ML Models (NN, RFR, GPR)
 \(\rightarrow\) Inverse design using Genetic Algorithm \(\rightarrow\)
 Validation of promising compounds.\\
-*Figure2:*\\
-Quick visualization of PBE data + correlations with descriptors
-(reproduced from other paper?).\\
-*Figure3:*\\
-All surrogate ML model results:
+
+
+** All surrogate ML model results
 
 - RMSE vs training set size for NN, RFR and GPR, using composition only,
   elemental only, and both together, for 3 properties: *decomposition
@@ -90,9 +128,7 @@ All surrogate ML model results:
 
 - Parity plots for best ML models for each property
 
-\\
-*Figure4:*\\
-Genetic algorithm results:
+** Genetic algorithm results
 
 - Fitness score vs generation, stability only.
 
@@ -116,28 +152,28 @@ supercell. DFT vs ML properties + band structure + absorption spectra.\\
 :CUSTOM_ID: section-1
 :CLASS: unnumbered
 :END:
-| *Dataset*                  | *Regression Method* | *Elemental properties* | *Unit cell defect properties* | *Elemental + Unit cell defect properties* |
-|----------------------------+---------------------+------------------------+-------------------------------+-------------------------------------------|
-|                            |                     |                        |                               |                                           |
-|                            | RFR                 | 0.40                   | 0.20                          | 0.17                                      |
-| Training                   | KRR                 | 0.40                   | 0.30                          | 0.20                                      |
-|                            | LASSO               | 0.62                   | 0.50                          | 0.44                                      |
-|                            |                     |                        |                               |                                           |
-|                            |                     |                        |                               |                                           |
-|                            | RFR                 | 0.65                   | 0.45                          | 0.38                                      |
-| Test                       | KRR                 | 0.68                   | 0.40                          | 0.32                                      |
-|                            | LASSO               | 0.75                   | 0.52                          | 0.47                                      |
-|                            |                     |                        |                               |                                           |
-|                            |                     |                        |                               |                                           |
-|                            | RFR                 | 0.84                   | 0.57                          | 0.52                                      |
-| CdTe\(_{0.5}\)Se\(_{0.5}\) | KRR                 | 0.80                   | 0.65                          | 0.57                                      |
-|                            | LASSO               | 0.95                   | 0.73                          | 0.65                                      |
-|                            |                     |                        |                               |                                           |
-|                            |                     |                        |                               |                                           |
-|                            | RFR                 | 0.86                   | 0.63                          | 0.57                                      |
-| CdSe\(_{0.5}\)S\(_{0.5}\)  | KRR                 | 0.75                   | 0.68                          | 0.70                                      |
-|                            | LASSO               | 0.92                   | 0.70                          | 0.72                                      |
-|                            |                     |                        |                               |                                           |
+| *Dataset*                  | *Regression* | *Site Properties* | *Defect Properties* | *Site+Defect* |
+|----------------------------+--------------+-------------------+---------------------+---------------|
+|                            |              |                   |                     |               |
+|                            | RFR          |              0.40 |                0.20 |          0.17 |
+| Training                   | KRR          |              0.40 |                0.30 |          0.20 |
+|                            | LASSO        |              0.62 |                0.50 |          0.44 |
+|                            |              |                   |                     |               |
+|                            |              |                   |                     |               |
+|                            | RFR          |              0.65 |                0.45 |          0.38 |
+| Test                       | KRR          |              0.68 |                0.40 |          0.32 |
+|                            | LASSO        |              0.75 |                0.52 |          0.47 |
+|                            |              |                   |                     |               |
+|                            |              |                   |                     |               |
+|                            | RFR          |              0.84 |                0.57 |          0.52 |
+| CdTe\(_{0.5}\)Se\(_{0.5}\) | KRR          |              0.80 |                0.65 |          0.57 |
+|                            | LASSO        |              0.95 |                0.73 |          0.65 |
+|                            |              |                   |                     |               |
+|                            |              |                   |                     |               |
+|                            | RFR          |              0.86 |                0.63 |          0.57 |
+| CdSe\(_{0.5}\)S\(_{0.5}\)  | KRR          |              0.75 |                0.68 |          0.70 |
+|                            | LASSO        |              0.92 |                0.70 |          0.72 |
+|                            |              |                   |                     |               |
 
 ** Summary
 :PROPERTIES:
@@ -340,5 +376,5 @@ Correspondence and requests for materials should be addressed to A.M.K.
 :CUSTOM_ID: references
 :CLASS: unnumbered
 :END:
-bibliographystyle:naturemag
+bibliographystyle:aipnum4-2
 bibliography:~/org/bibliotex/bibliotex.bib
