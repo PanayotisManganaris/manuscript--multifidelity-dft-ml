@@ -21,22 +21,16 @@
 #+SETUPFILE: ~/org/revtex_header.org
 #+INCLUDE: ./frontmatter.org
 #+begin_abstract
-The ability to predict the likelihood of impurity incorporation and their electronic energy levels in
-semiconductors is crucial for controlling its conductivity, and thus the semiconductor's performance in solar
-cells, photodiodes, and optoelectronics. The difficulty and expense of experimental and computational
-determination of impurity levels makes a data-driven machine learning approach appropriate. In this work, we
-show that a density functional theory-generated dataset of impurities in Cd-based chalcogenides CdTe, CdSe,
-and CdS can lead to accurate and generalizable predictive models of defect properties. By converting any
-\textit{semiconductor + impurity} system into a set of numerical descriptors, regression models are developed
-for the impurity formation enthalpy and charge transition levels. These regression models can subsequently
-predict impurity properties in mixed anion CdX compounds (where X is a combination of Te, Se and S) fairly
-accurately, proving that although trained only on the end points, they are applicable to intermediate
-compositions. We make machine-learned predictions of the Fermi-level-dependent formation energies of hundreds
-of possible impurities in 5 chalcogenide compounds, and we suggest a list of impurities which can shift the
-equilibrium Fermi level in the semiconductor as determined by the dominant intrinsic defects. These
-`dominating' impurities as predicted by machine learning compare well with DFT predictions, revealing the
-power of machine-learned models in the quick screening of impurities likely to affect the optoelectronic
-behavior of semiconductors.
+We report on the the details of creating a materials design pipeline
+for Halide Perovskites. The primary objective of this pipeline is to
+suggest ideal Perovskite stoichiometry based on a surrogate
+relationship between a continuous composition space and various
+Perovskite properties. A variety of regression models are examined and
+refined. Ultimately, a multi-fidelity regression model is formulated
+with the intent of achieving accurate predictions on the same order as
+experiment. Finally, this model is applied within a simple inverse
+design framework using a Genetic Algorithm driven by a maximum
+likelihood objective function.
 #+end_abstract
 * Introduction
 :PROPERTIES:
@@ -76,28 +70,28 @@ cross-validation folds as well as on
 **** PBE Data
 #+caption: \label{fig:comp} Proportion of constituents present in dataset
 #+attr_latex: width 300
-[[file:Constituent_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/PBE_Constituent_Representations.png]]
+[[file:Constituent_Representations.png][file:./Dataset_Overview/PBE_Constituent_Representations.png]]
 
 #+caption: \label{fig:group} Share of total data apportioned to each alloy group
 #+attr_latex: width 300
-[[file:Alloy_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/PBE_Alloy_Representations.png]]
+[[file:Alloy_Representations.png][file:./Dataset_Overview/PBE_Alloy_Representations.png]]
 
 #+caption: \label{fig:groupcomp} Proportion of constituents present in each alloy group 
 #+attr_latex: width 300
-[[file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/PBE_Constituent_Representations_per_Scheme.png]]
+[[file:./Dataset_Overview/PBE_Constituent_Representations_per_Scheme.png]]
 
 **** HSE Data
 #+caption: \label{fig:comp} Proportion of constituents present in dataset
 #+attr_latex: width 300
-[[file:Constituent_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/HSE_Constituent_Representations.png]]
+[[file:Constituent_Representations.png][file:./Dataset_Overview/HSE_Constituent_Representations.png]]
 
 #+caption: \label{fig:group} Share of total data apportioned to each alloy group
 #+attr_latex: width 300
-[[file:Alloy_Representations.png][file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/HSE_Alloy_Representations.png]]
+[[file:Alloy_Representations.png][file:./Dataset_Overview/HSE_Alloy_Representations.png]]
 
 #+caption: \label{fig:groupcomp} Proportion of constituents present in each alloy group 
 #+attr_latex: width 300
-[[file:~/MannodiGroup/publications/61b23d041c2d41de2144462b/Dataset_Overview/HSE_Constituent_Representations_per_Scheme.png]]
+[[file:./Dataset_Overview/HSE_Constituent_Representations_per_Scheme.png]]
 
 *** Univariate Analysis
 The computational properties of interest are Perovskite Bandgap,
@@ -126,10 +120,42 @@ the "yogi" repository at [[http://github.com/PanayotisManganaris/yogi]]
 :CUSTOM_ID: results-and-discussion
 :CLASS: unnumbered
 :END:
-*Figure1:*\\
-Outline of work: HT-DFT Data Generation \(\rightarrow\) Descriptors and
-correlations \(\rightarrow\) Surrogate ML Models (NN, RFR, GPR)
-\(\rightarrow\) Inverse design using Genetic Algorithm \(\rightarrow\)
+Future work will focus on applying and extending the high throughput
+screening criteria developed in [[cite:&mannodi-kanakkithodi-2021-data-driven-new]]
+
+
+** Outline of Work
+Computational Details
+- HT-DFT Data Generation
+  The current work is focused on cubic phase compounds only.
+- Experimental Data Collection
+- Data Validation
+  some records were excluded from the present analysis based on an
+  excessive deviation-from-cubicity as measured by:
+
+  DFC Equations
+
+Descriptors and correlations
+- physical aspect of numerical descriptors
+
+Several machine learning architectures are rigorously optimized with
+regard to both generality over the domains of Perovskite compositions
+and site-averaged atomic properties and generality over the domain of
+alloy classifications.
+
+In order to control for the classification biases potentially acting
+on the parameter space of regression models, nine metrics are used to
+evaluate the performance of each model over all alloy types at every
+stage of the hyper-parameter optimization simultaneously. Only models
+that perform uniformly well on all alloy classes are selected.
+
+Validation curves are computed for hyper-parameters to which a given
+model is particularly sensitive.
+
+
+
+RFR, GPR, GBR
+ Inverse design using Genetic Algorithm \(\rightarrow\)
 Validation of promising compounds.\\
 
 
