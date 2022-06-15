@@ -21,6 +21,94 @@
 #+SETUPFILE: ~/org/revtex_header.org
 #+INCLUDE: ./frontmatter.org
 #+begin_abstract
+We report on the details of creating a materials design pipeline for
+halide perovskites. The primary objective of this pipeline is to
+recommend perovskite alloy compositions corresponding to targeted
+properties. Here targets are chosen to yield stable compounds with
+high photovoltaic (PV) performance. Thus, we focus on models of the
+electronic band gap, decomposition energy (and, therefore, perovskite
+stability), and PV efficiency. We use the Spectroscopic Limited
+Maximum Efficiency (SLME) for synthetic data and Power Conversion
+Efficiency (PCE) for physical data. We leverage nanoHUB, an
+NSF-funded, Purdue-hosted computational repository, to host literate
+and reproducible notebooks documenting our model development workflow
+[[cite:&manganaris-2022-mrs-comput]]. We also host an interoperable
+database and continuously improving inverse design pipeline for public
+access. We thus enable the scientific community to search for
+compounds satisfying performance targets for a wide range of
+optoelectronic applications, including quantum computing and
+metrology. The design pipeline makes recommendations based on
+continuous surrogate models trained to connect a discretely sampled
+composition space to the targeted properties. Optimal compositions are
+selected using a Genetic Algorithm (GA) where fitness is judged by
+minimizing the euclidean distance between the predicted and targeted
+properties and by ensuring chemical feasibility of the composition.
+
+The use of GA allows the optimizer to prioritize exploration. So,
+locally optimal candidate compositions can be discovered without
+excessive fixation on a small subset of fit regions. Critically, GA is
+also efficient in high dimensional space. In our past published work
+[[cite:&mannodi-kanakkithodi-2021-data-driven-new]], the mixed composition
+space of all possible perovskite alloys experiences combinatorial
+scaling. As we transition from discrete sampling based on a finite
+supercell space to continuous surrogate models, this scaling continues
+to infinite resolution. We provide a variety of surrogate machine
+learning (ML) models for the optimizer to work on, namely a rigorously
+optimized Random Forest Regressor (RFR), a Gaussian Process (GP)
+Regressor, and a Sure Independence Screening and Sparsifying Operator
+(SISSO) regressor. Naturally, the GA's solutions will only be as good
+as the accuracy of the surrogates.
+
+The data base consists of approximately 1000 records subdivided into
+tables according to the record sources. The largest table of ~500
+compounds contains optoelectronic properties computed using density
+functional theory (DFT) simulations (including geometry optimization
+of pseudo-cubic supercells of ABX3 compounds with arbitrary mixing at
+each site, followed by static band structure and optical absorption
+calculations) performed at the GGA-PBE level of theory. Following
+this, ~300 compounds were subjected to more expensive hybrid HSE06
+computations, both with and without spin-orbit coupling (SOC), for
+better electronic properties. Finally, ~100 of the same compositions
+also record experimental measurements for band gap and efficiency.
+
+So, we explore combining these sources according to various
+multi-fidelity modeling techniques with the aim of improving the
+accuracy of each of our surrogate architectures. Currently we ignore
+descriptors based on crystal structure and use only composition
+information. This simplifies featurization because a composition
+vector can be procedurally obtained for experimental and synthetic
+data alike simply by parsing a string encoding the ABX_3 perovskite
+formula corresponding to each record with relative ease.
+
+This 14-dimensional vector is a sufficient predictor variable, Nothing
+more is needed for a new data point to be evaluated. However, we also
+examine 36 additional predictor variables computed as linear
+combinations of these compositions and certain elemental properties
+obtained from the trusted Mendeleev databases
+[[cite:&mentel-2014]]. Previous reports on the union of all 50 of these
+predictor variables
+[[cite:&yang-2022-high-throug;&mannodi-kanakkithodi-2021-data-driven-new]].
+show that our perovskites database is a good systematic sampling of
+the solutions space and contains a variety of strong correlations
+between the predictor and regressor variables.
+
+In summary, this framework provides on-demand predictions for the
+stability and optoelectronic properties of any perovskite alloy based
+on rigorously optimized ML models. It also recommends novel
+compositions with multiple desired properties using these models.  By
+testing these recommendations with DFT we form a loop that leverages
+ML's ability to improve incrementally with exposure to new data that
+efficiently discovers the best possible materials.
+
+Finally, we discuss the advantages and disadvantages of state of the
+art graph-descriptor driven surrogate models for this application.
+Our database is constructed to leverage these graph tools as well, so
+we expect future versions of this system to benefit from their
+implementation. Ultimately, our framework is openly available and
+constantly being updated with fresh DFT data, ML models, and tools for
+prediction and design.
+#+end_abstract
+* COMMENT executive summary
 We report on the the details of creating a materials design pipeline
 for Halide Perovskites. The primary objective of this pipeline is to
 suggest ideal Perovskite stoichiometry based on a surrogate
@@ -31,7 +119,6 @@ with the intent of achieving accurate predictions on the same order as
 experiment. Finally, this model is applied within a simple inverse
 design framework using a Genetic Algorithm driven by a maximum
 likelihood objective function.
-#+end_abstract
 * Introduction
 :PROPERTIES:
 :CUSTOM_ID: introduction
@@ -355,12 +442,29 @@ Additionally/Alternatively,
 :END:
 ...\\
 
+* FUTURE WORK
+:PROPERTIES:
+:CUSTOM_ID: future
+:CLASS: unnumbered
+:END:
+- must have identified novel compounds
+  - generalize the active learning strategy to include arbitrary structures
+- improve accuracy of surrogate model -- RFR/GPR/NN?
+  - incorporate experimental data [[cite:&jacobsson-2021-open-acces;&briones-2021-accel-lattic]]
+  - improve delta learning strategy to utilize more indicators besides SLME/PCE
+- utilize the active learning approach developed here to extensively
+  grow the cubic perovskites dataset
+  - we will investigate using MEGnet or similar structure-based
+    predictors to also begin optimizing other phases in the same
+    fashion
+
+Our first objective is to utilize much more experimental data in the
+construction of regressions.
 * ACKNOWLEDGMENTS
 :PROPERTIES:
 :CUSTOM_ID: acknowledgments
 :CLASS: unnumbered
 :END:
-
 We acknowledge funding from the US Department of Energy SunShot program
 under contract #DOE DEEE005956. Use of the Center for Nanoscale
 Materials, an Office of Science user facility, was supported by the U.S.
