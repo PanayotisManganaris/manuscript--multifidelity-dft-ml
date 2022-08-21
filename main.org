@@ -1,16 +1,16 @@
 #+options: ':nil *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline author:t broken-links:nil c:nil creator:nil
 #+options: d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t num:nil p:nil pri:nil prop:nil stat:t tags:t
 #+options: tasks:t tex:t timestamp:t title:nil toc:nil todo:t |:t
-#+TITLE: Combining High-Throughput Computations, Surrogate Models, and
-#+TITLE: Genetic Algorithms for Discovering Novel Halide Perovskites
-#+AUTHOR: Panayotis Manganaris
+# #+TITLE: Combining High-Throughput Computations, Surrogate Models, and
+# #+TITLE: Genetic Algorithms for Discovering Novel Halide Perovskites
+# #+AUTHOR: Panayotis Manganaris
 #+language: en
 #+select_tags: export
 #+exclude_tags: noexport
 #+creator: Emacs 29.0.50 (Org mode 9.5.2)
 #+cite_export:
 #+latex_class: revtex
-#+latex_class_options: [aip, jmp, amsmath, amssymb, reprint]
+#+latex_class_options: [aip, jmp, amsmath, amssymb]
 #+latex_header:
 #+latex_header_extra:
 #+description:

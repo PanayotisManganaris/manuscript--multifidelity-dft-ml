@@ -17,5 +17,6 @@ Purdue University, West Lafayette, Indiana 47907, USA
 \collaboration{Mannodi Research Group}
 
 \date{\today}
+\maketitle
 %INCLUDE before abstract environment
 #+end_export 
