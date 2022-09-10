@@ -21,93 +21,57 @@
 #+SETUPFILE: ~/org/revtex_header.org
 #+INCLUDE: ./frontmatter.org
 #+begin_abstract
-We report on the details of creating a materials design pipeline for
-halide perovskites. The primary objective of this pipeline is to
-recommend perovskite alloy compositions corresponding to targeted
-properties. Here targets are chosen to yield stable compounds with
-high photovoltaic (PV) performance. Thus, we focus on models of the
-electronic band gap, decomposition energy (and, therefore, perovskite
-stability), and PV efficiency. We use the Spectroscopic Limited
-Maximum Efficiency (SLME) for synthetic data and Power Conversion
-Efficiency (PCE) for physical data. We leverage nanoHUB, an
-NSF-funded, Purdue-hosted computational repository, to host literate
-and reproducible notebooks documenting our model development workflow
-[[cite:&manganaris-2022-mrs-comput]]. We also host an interoperable
-database and continuously improving inverse design pipeline for public
-access. We thus enable the scientific community to search for
-compounds satisfying performance targets for a wide range of
-optoelectronic applications, including quantum computing and
-metrology. The design pipeline makes recommendations based on
-continuous surrogate models trained to connect a discretely sampled
-composition space to the targeted properties. Optimal compositions are
-selected using a Genetic Algorithm (GA) where fitness is judged by
-minimizing the euclidean distance between the predicted and targeted
-properties and by ensuring chemical feasibility of the composition.
+We report on the details of creating models of halide perovskite properties based on composition and derived
+descriptors. The primary objective of these models is to eventually recommend perovskite alloy compositions
+corresponding to targeted properties. Here targets are chosen to yield high photovoltaic (PV) performance. So, we focus
+on models of the electronic band gap. We leverage the Purdue University nanoHUB, an NSF-funded, Purdue-hosted
+computational repository, to host literate reproducible notebooks documenting our model development workflow
+[[cite:&manganaris-2022-mrs-comput]]. We thus enable the scientific community to utilize our approach for modeling
+performance targets for a wider range of promising compounds.
 
-The use of GA allows the optimizer to prioritize exploration. So,
-locally optimal candidate compositions can be discovered without
-excessive fixation on a small subset of fit regions. Critically, GA is
-also efficient in high dimensional space. In our past published work
-[[cite:&mannodi-kanakkithodi-2021-data-driven-new]], the mixed composition
-space of all possible perovskite alloys experiences combinatorial
-scaling. As we transition from discrete sampling based on a finite
-supercell space to continuous surrogate models, this scaling continues
-to infinite resolution. We provide a variety of surrogate machine
-learning (ML) models for the optimizer to work on, namely a rigorously
-optimized Random Forest Regressor (RFR), a Gaussian Process (GP)
-Regressor, and a Sure Independence Screening and Sparsifying Operator
-(SISSO) regressor. Naturally, the GA's solutions will only be as good
-as the accuracy of the surrogates.
+We explore a variety of machine learning (ML) models for the prediction of Perovskite bandgap. A rigorously optimized
+Random Forest Regressor (RFR), a Gaussian Process (GP) Regressor, and a Sure Independent Screening and Sparsifying
+Operator (SISSO) regressor.
 
-The data base consists of approximately 1000 records subdivided into
-tables according to the record sources. The largest table of ~500
-compounds contains optoelectronic properties computed using density
-functional theory (DFT) simulations (including geometry optimization
-of pseudo-cubic supercells of ABX3 compounds with arbitrary mixing at
-each site, followed by static band structure and optical absorption
-calculations) performed at the GGA-PBE level of theory. Following
-this, ~300 compounds were subjected to more expensive hybrid HSE06
-computations, both with and without spin-orbit coupling (SOC), for
-better electronic properties. Finally, ~100 of the same compositions
-also record experimental measurements for band gap and efficiency.
+Approximately 1500 physical and synthetic records spanning various experimental fidelities and alloy schemes are used in
+model development. All experiments are conducted for one of ~500 perovskite compositions. ~1400 experiments are
+performed computationally using Density Functional Theory (DFT), ~100 are physical measurements obtained from published
+literature[[cite:&almora-2020-devic-perfor;&jiang-2006-predic-lattic;&briones-2021-accel-lattic]].
 
-So, we explore combining these sources according to various
-multi-fidelity modeling techniques with the aim of improving the
-accuracy of each of our surrogate architectures. Currently we ignore
-descriptors based on crystal structure and use only composition
-information. This simplifies featurization because a composition
-vector can be procedurally obtained for experimental and synthetic
-data alike simply by parsing a string encoding the ABX_3 perovskite
-formula corresponding to each record with relative ease.
+1. 500 PBE relaxations -> PBE Density of States (DoS) calculation
+2. 300 HSE06 relaxations -> HSE06 DoS
+3. 300 HSE06 relaxations -> HSE06 + Spin-Orbit Coupling (SOC) DoS
+4. 300 PBE relaxations -> HSE06 + SOC DoS
+5. 100 experimental band gap measurements
 
-This 14-dimensional vector is a sufficient predictor variable, Nothing
-more is needed for a new data point to be evaluated. However, we also
-examine 36 additional predictor variables computed as linear
-combinations of these compositions and certain elemental properties
-obtained from the trusted Mendeleev databases
-[[cite:&mentel-2014]]. Previous reports on the union of all 50 of these
-predictor variables
-[[cite:&yang-2022-high-throug;&mannodi-kanakkithodi-2021-data-driven-new]].
-show that our perovskites database is a good systematic sampling of
-the solutions space and contains a variety of strong correlations
-between the predictor and regressor variables.
+Our models are based primarily on composition information. We implement generic feature extraction by parsing a string
+encoding the ABX_3 perovskite formula corresponding to each record. The resulting 14-dimensional composition vector is
+easily obtained for experimental and synthetic data alike. This is a sufficient predictor variable, nonetheless we
+continue. Secondarily, we also examine 36 additional predictor variables computed as linear combinations of these
+compositions and certain elemental properties obtained from the trusted Mendeleev databases [[cite:&mentel-2014]]. Finally,
+additional fidelity features are one-hot-encoded with the aim of improving model accuracy. In future work, we anticipate
+adding descriptors based on phase and structural information.
 
-In summary, this framework provides on-demand predictions for the
-stability and optoelectronic properties of any perovskite alloy based
-on rigorously optimized ML models. It also recommends novel
-compositions with multiple desired properties using these models.  By
-testing these recommendations with DFT we form a loop that leverages
-ML's ability to improve incrementally with exposure to new data that
-efficiently discovers the best possible materials.
-
-Finally, we discuss the advantages and disadvantages of state of the
-art graph-descriptor driven surrogate models for this application.
-Our database is constructed to leverage these graph tools as well, so
-we expect future versions of this system to benefit from their
-implementation. Ultimately, our framework is openly available and
-constantly being updated with fresh DFT data, ML models, and tools for
-prediction and design.
+We finally compare the band gap models based on this basic 55 dimensional descriptor and models based on an engineered
+domain we produced to improve model efficiency, performance, and interpretability.
 #+end_abstract
+
+# The largest subdivision of ~1400 compounds correspond to a series of
+# optoelectronic properties simulations performed using density
+# functional theory (DFT). The simulated experiments are performed on
+# ~500 pseudo-cubic ABX_3 supercells obtained by geometry
+# optimization. Each cell demonstrates mixed compositions at none or
+# one of each of the A, B, or X sites. See Figure.
+
+# Each simulated structure is made in two ways. Once with the GGA-PBE
+# functional and once with the HSE06 functional. For structure, band
+# gaps are obtained using a static band structure calculation performed
+# at the same and at higher levels-of-theory. Specifically, ~300 of the
+# same compounds underwent HSE06 bandstructure computations, both with
+# and without spin-orbit coupling (SOC), for a total of approximately
+# 900 experiments with enhanced accuracy.
+
+# SOC is performed for better better electronic properties.#+end_abstract
 * COMMENT executive summary
 We report on the the details of creating a materials design pipeline
 for Halide Perovskites. The primary objective of this pipeline is to
@@ -119,6 +83,24 @@ with the intent of achieving accurate predictions on the same order as
 experiment. Finally, this model is applied within a simple inverse
 design framework using a Genetic Algorithm driven by a maximum
 likelihood objective function.
+* story
+** The Basic Feature Space
+- 14 dimensional composition vectors extracted from chemical formula
+- 36 dimensional site-averaged property space computed from composition space
+- categorical dimension one-hot-encoding level of theory
+  - pure PBE
+  - pure HSE
+  - pure HSE+SOC
+  - HSE on PBE
+- models of band gap trained on union of features
+  - Linear
+  - RFR
+  - GPR
+** The Engineered Feature Space
+- SISSO
+** the tools
+- converting formula strings to vectors
+- converting vectors to structures
 * Introduction
 :PROPERTIES:
 :CUSTOM_ID: introduction
