@@ -424,6 +424,46 @@ Additionally/Alternatively,
 :END:
 ...\\
 
+* COMMENT text for the body
+Finally, by testing GA recommendations with DFT we form a loop that
+improves the ML models incrementally with exposure to new data,
+thereby efficiently discovering the best possible cubic perovskite
+compounds. Also
+
+The largest table of 490 records contains computed electronic
+properties. Each is obtained for a unique composition using static
+Density Functional Theory (DFT) simulations (relaxation, electronic)
+conducted at a PBE level of theory. Additionally, 299 of the
+compositions tested in the first 490 records are fully simulated at an
+HSE level of theory. Another *SUBSET* of these are also examined,
+following PBE relaxation, using HSE with Spin Orbit Coupling (SOC).
+
+For \alpha total A-site constituents represented in the whole
+database, \beta total B-site constituents, and \gamma total X-site
+constituents, we provide a python tool which robustly coverts the
+composition string of each data point into a \(\alpha + \beta +
+\gamma\) dimensional composition vector. In the case of our dataset
+description [[cite:&yang-2022-high-throug]] \(\alpha + \beta + \gamma =
+14\).
+
+it is easy to make composition based multi-fidelity
+predictors. Involving structure is a challenge for experimentally
+collected data because experimental measurements have to be accurately
+matched to structure graphs, which generally must be either
+exhaustively validated or generated using specialized equipment.
+
+
+Extending this inverse design framework to non-cubic Perovskite phases
+is likely to be best enabled by the sophisticated graph neural
+networks being developed for exactly this purpose.
+
+Surely, this will be aided by the growing databases of experimentally
+measured Perovskite compounds with well defined structures.
+
+In fact, it is expected that these novel assets will even permit
+reasonable multi-fidelity models to be developed under the graph
+learning paradigm.
+
 * FUTURE WORK
 :PROPERTIES:
 :CUSTOM_ID: future
