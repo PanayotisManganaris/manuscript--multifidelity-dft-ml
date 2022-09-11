@@ -55,23 +55,6 @@ adding descriptors based on phase and structural information.
 We finally compare the band gap models based on this basic 55 dimensional descriptor and models based on an engineered
 domain we produced to improve model efficiency, performance, and interpretability.
 #+end_abstract
-
-# The largest subdivision of ~1400 compounds correspond to a series of
-# optoelectronic properties simulations performed using density
-# functional theory (DFT). The simulated experiments are performed on
-# ~500 pseudo-cubic ABX_3 supercells obtained by geometry
-# optimization. Each cell demonstrates mixed compositions at none or
-# one of each of the A, B, or X sites. See Figure.
-
-# Each simulated structure is made in two ways. Once with the GGA-PBE
-# functional and once with the HSE06 functional. For structure, band
-# gaps are obtained using a static band structure calculation performed
-# at the same and at higher levels-of-theory. Specifically, ~300 of the
-# same compounds underwent HSE06 bandstructure computations, both with
-# and without spin-orbit coupling (SOC), for a total of approximately
-# 900 experiments with enhanced accuracy.
-
-# SOC is performed for better better electronic properties.#+end_abstract
 * COMMENT executive summary
 We report on the the details of creating a materials design pipeline
 for Halide Perovskites. The primary objective of this pipeline is to
@@ -101,7 +84,7 @@ likelihood objective function.
 ** the tools
 - converting formula strings to vectors
 - converting vectors to structures
-* Introduction
+* INTRODUCTION
 :PROPERTIES:
 :CUSTOM_ID: introduction
 :CLASS: unnumbered
@@ -299,8 +282,48 @@ supercell. DFT vs ML properties + band structure + absorption spectra.\\
 :CLASS: unnumbered
 :END:
 ...\\
+*** TODO VASP
 
-*** TODO Chemical Featurization
+*** TODO Levels of Theory
+The largest table of 490 records contains computed electronic
+properties. Each is obtained for a unique composition using static
+Density Functional Theory (DFT) simulations (relaxation, electronic)
+conducted at a PBE level of theory. Additionally, 299 of the
+compositions tested in the first 490 records are fully simulated at an
+HSE level of theory. Another *SUBSET* of these are also examined,
+following PBE relaxation, using HSE with Spin Orbit Coupling (SOC).
+
+Each simulated structure is made in two ways. Once with the GGA-PBE
+functional and once with the HSE06 functional. For structure, band
+gaps are obtained using a static band structure calculation performed
+at the same and at higher levels-of-theory. Specifically, ~300 of the
+same compounds underwent HSE06 bandstructure computations, both with
+and without spin-orbit coupling (SOC), for a total of approximately
+900 experiments with enhanced accuracy.
+
+SOC is performed for better better electronic properties.
+
+*** TODO Featurization of Chemistries
+The largest subdivision of ~1400 compounds correspond to a series of
+optoelectronic properties simulations performed using density
+functional theory (DFT). The simulated experiments are performed on
+~500 pseudo-cubic ABX_3 supercells obtained by geometry
+optimization. Each cell demonstrates mixed compositions at none or one
+of each of the A, B, or X sites. See Figure.
+
+For \alpha total A-site constituents represented in the whole
+database, \beta total B-site constituents, and \gamma total X-site
+constituents, we provide a python tool which robustly coverts the
+composition string of each data point into a \(\alpha + \beta +
+\gamma\) dimensional composition vector. In the case of our dataset
+description [[cite:&yang-2022-high-throug]] \(\alpha + \beta + \gamma =
+14\).
+
+it is easy to make composition based multi-fidelity
+predictors. Involving structure is a challenge for experimentally
+collected data because experimental measurements have to be accurately
+matched to structure graphs, which generally must be either
+exhaustively validated or generated using specialized equipment.
 
 ** Surrogate Modeling Perovskite Properties
 :PROPERTIES:
@@ -417,71 +440,56 @@ repeated.
 
 Additionally/Alternatively,
 
-** Genetic Algorithm
-:PROPERTIES:
-:CUSTOM_ID: genetic-algorithm
-:CLASS: unnumbered
-:END:
-...\\
-
-* COMMENT text for the body
-Finally, by testing GA recommendations with DFT we form a loop that
-improves the ML models incrementally with exposure to new data,
-thereby efficiently discovering the best possible cubic perovskite
-compounds. Also
-
-The largest table of 490 records contains computed electronic
-properties. Each is obtained for a unique composition using static
-Density Functional Theory (DFT) simulations (relaxation, electronic)
-conducted at a PBE level of theory. Additionally, 299 of the
-compositions tested in the first 490 records are fully simulated at an
-HSE level of theory. Another *SUBSET* of these are also examined,
-following PBE relaxation, using HSE with Spin Orbit Coupling (SOC).
-
-For \alpha total A-site constituents represented in the whole
-database, \beta total B-site constituents, and \gamma total X-site
-constituents, we provide a python tool which robustly coverts the
-composition string of each data point into a \(\alpha + \beta +
-\gamma\) dimensional composition vector. In the case of our dataset
-description [[cite:&yang-2022-high-throug]] \(\alpha + \beta + \gamma =
-14\).
-
-it is easy to make composition based multi-fidelity
-predictors. Involving structure is a challenge for experimentally
-collected data because experimental measurements have to be accurately
-matched to structure graphs, which generally must be either
-exhaustively validated or generated using specialized equipment.
-
-
-Extending this inverse design framework to non-cubic Perovskite phases
-is likely to be best enabled by the sophisticated graph neural
-networks being developed for exactly this purpose.
-
-Surely, this will be aided by the growing databases of experimentally
-measured Perovskite compounds with well defined structures.
-
-In fact, it is expected that these novel assets will even permit
-reasonable multi-fidelity models to be developed under the graph
-learning paradigm.
 
 * FUTURE WORK
 :PROPERTIES:
 :CUSTOM_ID: future
 :CLASS: unnumbered
 :END:
-- must have identified novel compounds
-  - generalize the active learning strategy to include arbitrary structures
+- broaden model domain to include alternative phases
+
 - improve accuracy of surrogate model -- RFR/GPR/NN?
-  - incorporate experimental data [[cite:&jacobsson-2021-open-acces;&briones-2021-accel-lattic]]
-  - improve delta learning strategy to utilize more indicators besides SLME/PCE
-- utilize the active learning approach developed here to extensively
-  grow the cubic perovskites dataset
-  - we will investigate using MEGnet or similar structure-based
-    predictors to also begin optimizing other phases in the same
-    fashion
+  - incorporate much more experimental data
+    [[cite:&jacobsson-2021-open-acces;&briones-2021-accel-lattic]]
+  - implement delta learning strategy to utilize more indicators
+    besides SLME/PCE
+
+Results suggest that either alternative semi-supervised learning
+strategies or much more experimental data is needed to improve the
+quality of experimental-fidelity predictions.
 
 Our first objective is to utilize much more experimental data in the
 construction of regressions.
+
+An ongoing goal will be growing a database of experimentally examined
+perovskite photovoltaic prototypes will well defined structures.
+
+- utilize an active learning approach leveraging GPR models to
+  extensively grow the cubic perovskites dataset
+
+The GA fitness function should account for uncertainty in the
+surrogate model. GA recommendations can be tuned to explore
+uncertainty. Testing these recommendations with DFT forms a loop that
+improves the ML models incrementally with exposure to new data,
+thereby efficiently discovering the best possible cubic perovskite
+compounds.
+
+- identify novel compounds
+
+- utilize convolutional graph neural networks to make
+  structure->target models
+  - MEGnet scalable graph networks for polymorph-sensitive property
+    prediction[[cite:&chen-2019-graph-networ]]
+  - ALIGNN[[cite:&choudhary-2021-atomis-line]]
+  - CGCNN
+
+Extending models to perform effectively on non-cubic Perovskite phases
+is best enabled by the sophisticated graph neural networks being
+developed for exactly this purpose.
+
+Already, multi-fidelity "MFGnet" models are being developed under the graph
+learning paradigm[[cite:&chen-2020-multi-fidel]].
+
 * ACKNOWLEDGMENTS
 :PROPERTIES:
 :CUSTOM_ID: acknowledgments
@@ -511,18 +519,19 @@ DE-AC02-06CH11357.
 :CUSTOM_ID: author-contributions
 :CLASS: unnumbered
 :END:
-M.K.Y.C., R.F.K. and A.M.K. conceived the idea. A.M.K., M.Y.T. and
-F.G.S. performed the DFT computations. A.M.K. and M.J.D. trained ML
-models. All authors contributed to the discussion and writing of the
-manuscript.
+A.M.K. conceived the idea. A.M.K. and J.Y. performed the DFT
+computations. P.T.M. Trained ML models. All authors contributed to the
+discussion and writing of the manuscript.
 
 ** Data Availability
 :PROPERTIES:
 :CUSTOM_ID: data-availability
 :CLASS: unnumbered
 :END:
-DFT data and ML models are available from the corresponding author upon
-reasonable request.
+DFT data and ML models are available from the corresponding author
+upon reasonable request. All documents are tracked in the
+https://github.com/PanayotisManganaris/manusciprt--multifidelity-dft-ml.git
+online repository
 
 ** Additional Information
 :PROPERTIES:
@@ -534,7 +543,7 @@ The authors declare no competing financial or non-financial interests.
 Correspondence and requests for materials should be addressed to A.M.K.
 (email:amannodi@purdue.edu).
 
-* REFERENCES
+* 
 :PROPERTIES:
 :CUSTOM_ID: references
 :CLASS: unnumbered
