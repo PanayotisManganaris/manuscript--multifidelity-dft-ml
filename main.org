@@ -60,32 +60,36 @@ domain we produced to improve model efficiency, performance, and interpretabilit
 :CUSTOM_ID: introduction
 :CLASS: unnumbered
 :END:
-** Materials Design Pipeline
-#+CAPTION:\label{fig:outline} \textbf{Basic outline, structure and properties.}
-#+CAPTION:(a) General outline of materials design process leading to ML-driven
-#+CAPTION:prediction of properties based on DFT data and intermediate step of
-#+CAPTION:converting materials to numerical descriptors. (b) The Zinc Blende
-#+CAPTION:structure adopted by CdTe, CdSe, and CdS. Cd atoms are shown in blue
-#+CAPTION:and Te/Se/S atoms in red. The unit cell has been indicated with dashed
-#+CAPTION:lines. (c) Comparison of band gaps computed at the PBE and HSE06
-#+CAPTION:levels of theory with reported experimental values
-#+CAPTION:[[cite:&kim-2014-cdses-nanow;&swanson-2017-co-sublim]], for CdTe, CdSe,
-#+CAPTION:CdS, CdTe_{0.5}Se_{0.5} and CdSe_{0.5}S_{0.5}. (d) Outline of the DFT
-#+CAPTION:and ML driven prediction of properties of impurities in Cd-based
-#+CAPTION:chalcogenides.
+** COMMENT Developing Extrapolative Models
+#+CAPTION:\label{fig:outline} 
 #+attr_latex: scale=0.75
-file:Figure1.pdf
+
+need to introduce the significance of predicting band gaps more effectively
+
+reported experimental band gap values[[cite:&kim-2014-cdses-nanow;&swanson-2017-co-sublim]]
+** TODO Multi-Fidelity Modeling
+
+The problem with modeling low availability, high fidelity targets is
+approached in multiple ways in the literature.
+
+- Semi-supervised learning approaches
+
+  need details
+
+- sequential approaches
+
+  sequential approaches involve training a model architecture on
+  larger quantities of low fidelity data, gaining insight into rough
+  patterns which are then conducive to improving the quality of
+  predictions
+
 ** Dataset Overview
-:PROPERTIES:
-:ID:       488ae3b9-d59f-4d7a-b44c-bb2c4b996fe3
-:END:
-*** Quick visualization of PBE data + correlations with descriptors
-(reproduced from other paper?).\\
-*** Distribution Analysis
+*** Sample Representation Summary
 The design of this dataset provides an opportunity to assess the
-generalizability of Perovskite property models with respect to alloy
-group. It also provides an opportunity to investigate the statistical
-impact of constituent compounds on Perovskite property performance.
+ability of Perovskite property models to extrapolate with respect to
+alloying scheme. It also provides an opportunity to investigate the
+statistical impact of constituent compounds on Perovskite property
+performance.
 
 This will be done by performing model optimization on random
 cross-validation folds as well as on 
@@ -116,43 +120,19 @@ cross-validation folds as well as on
 #+attr_latex: width 300
 [[file:./Dataset_Overview/HSE_Constituent_Representations_per_Scheme.png]]
 
-*** Univariate Analysis
-The computational properties of interest are Perovskite Bandgap,
-Decomposition Energy (stability), and SpeSLME. appear to follow an
-approximately normal distribution Bandgap and
+*** Quick visualization of PBE data + correlations with descriptors
 
-** Software Tools
-A couple of libraries are in development for easing the aggregation,
-accessing, sharing, and analysis of this data.  The database itself is
-packaged with "cmcl" at [[http://github.com/PanayotisManganaris/cmcl]].
-In this early stage of development, cmcl strives to provide an
-"inquisitive" interface to comprehensive chemical data feature
-computers in the style of the pandas API. At its current stage, it has
-been useful for extracting composition vectors from the formula
-strings identifying each compound we explored.
-
-Model development is performed using the intel distribution of python
-and SciKit Learn v0.24 and a standard distribution of Tensorflow both
-obtained from the anaconda repositories. A library of supplementary
-model evaluation tools (designed with particular attention to
-smoothing the use of Pandas in ML workflows) is being maintained in
-the "yogi" repository at [[http://github.com/PanayotisManganaris/yogi]]
 
 * RESULTS AND DISCUSSION
 :PROPERTIES:
 :CUSTOM_ID: results-and-discussion
 :CLASS: unnumbered
 :END:
-** All surrogate ML model results
-
-- RMSE vs training set size for NN, RFR and GPR, using composition only,
-  elemental only, and both together, for 3 properties: *decomposition
-  energy, band gap, SLME*.
-
-- Best RMSE values for each property for different ML techniques and
-  different descriptors
-
-- Parity plots for best ML models for each property
+** Best Models
+- band gap parity plots
+- summary scores
+  - best scores
+  - best extrapolative ability
 
 ** Screening
 :PROPERTIES:
@@ -171,6 +151,8 @@ screening results to the previous batch produced by older models.
 :CUSTOM_ID: summary
 :CLASS: unnumbered
 :END:
+
+GPR performs best and 
 
 ** CANCELED COMMENT Genetic algorithm results
 :STATUSLOG:
@@ -296,6 +278,10 @@ exhaustively validated or generated using specialized equipment.
 - converting formula strings to vectors
 - converting vectors to structures
 
+** Model Training Procedure
+*** learning curves
+- scores vs training set size for RFR and GPR band gap
+*** 
 ** Surrogate Modeling Perovskite Properties
 :PROPERTIES:
 :CUSTOM_ID: surrogate-ml-models
@@ -446,14 +432,17 @@ improves the ML models incrementally with exposure to new data,
 thereby efficiently discovering the best possible cubic perovskite
 compounds.
 
-- identify novel compounds
+** identify novel compounds
+already, screening has been used to successfully identify some curious options
 
-- utilize convolutional graph neural networks to make
-  structure->target models
-  - MEGnet scalable graph networks for polymorph-sensitive property
-    prediction[[cite:&chen-2019-graph-networ]]
-  - ALIGNN[[cite:&choudhary-2021-atomis-line]]
-  - CGCNN
+what more can I add to this?
+
+** utilize convolutional graph neural networks
+enabling structure->target models
+- MEGnet scalable graph networks for polymorph-sensitive property
+  prediction[[cite:&chen-2019-graph-networ]]
+- ALIGNN[[cite:&choudhary-2021-atomis-line]]
+- CGCNN
 
 Extending models to perform effectively on non-cubic Perovskite phases
 is best enabled by the sophisticated graph neural networks being
@@ -461,6 +450,21 @@ developed for exactly this purpose.
 
 Already, multi-fidelity "MFGnet" models are being developed under the graph
 learning paradigm[[cite:&chen-2020-multi-fidel]].
+
+** Software Tools
+A couple of libraries are in development for easing the aggregation,
+accessing, sharing, and analysis of this data. The current database is
+packaged in "cmcl" at [[http://github.com/PanayotisManganaris/cmcl]] under
+the tag v0.1.5. In this early stage of development, cmcl strives to
+provide an "inquisitive" interface to perovskite composition feature
+computers in the style of the pandas API. At its current stage, it has
+been useful for extracting composition vectors from the formula
+strings identifying each compound.
+
+Model development and feature extraction is performed using python and
+SciKit Learn v1.2. A library of model evaluation tools is being
+maintained in the "yogi" repository at
+[[http://github.com/PanayotisManganaris/yogi]]
 
 * ACKNOWLEDGMENTS
 :PROPERTIES:
