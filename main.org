@@ -31,7 +31,7 @@ performance targets for a wider range of promising compounds.
 
 We explore a variety of machine learning (ML) models for the prediction of Perovskite bandgap. A rigorously optimized
 Random Forest Regressor (RFR), a Gaussian Process (GP) Regressor, and a Sure Independent Screening and Sparsifying
-Operator (SISSO) regressor.
+Operator[[cite:&ouyang-2018-sisso]] (SISSO) regressor.
 
 Approximately 1500 physical and synthetic records spanning various experimental fidelities and alloy schemes are used in
 model development. All experiments are conducted for one of ~500 perovskite compositions. ~1400 experiments are
@@ -55,35 +55,6 @@ adding descriptors based on phase and structural information.
 We finally compare the band gap models based on this basic 55 dimensional descriptor and models based on an engineered
 domain we produced to improve model efficiency, performance, and interpretability.
 #+end_abstract
-* COMMENT executive summary
-We report on the the details of creating a materials design pipeline
-for Halide Perovskites. The primary objective of this pipeline is to
-suggest ideal Perovskite stoichiometry based on a surrogate
-relationship between a continuous composition space and various
-Perovskite properties. A variety of regression models are examined and
-refined. Ultimately, a multi-fidelity regression model is formulated
-with the intent of achieving accurate predictions on the same order as
-experiment. Finally, this model is applied within a simple inverse
-design framework using a Genetic Algorithm driven by a maximum
-likelihood objective function.
-* story
-** The Basic Feature Space
-- 14 dimensional composition vectors extracted from chemical formula
-- 36 dimensional site-averaged property space computed from composition space
-- categorical dimension one-hot-encoding level of theory
-  - pure PBE
-  - pure HSE
-  - pure HSE+SOC
-  - HSE on PBE
-- models of band gap trained on union of features
-  - Linear
-  - RFR
-  - GPR
-** The Engineered Feature Space
-- SISSO
-** the tools
-- converting formula strings to vectors
-- converting vectors to structures
 * INTRODUCTION
 :PROPERTIES:
 :CUSTOM_ID: introduction
@@ -172,13 +143,59 @@ the "yogi" repository at [[http://github.com/PanayotisManganaris/yogi]]
 :CUSTOM_ID: results-and-discussion
 :CLASS: unnumbered
 :END:
-Future work will focus on applying and extending the high throughput
-screening criteria developed in [[cite:&mannodi-kanakkithodi-2021-data-driven-new]]
+** All surrogate ML model results
 
+- RMSE vs training set size for NN, RFR and GPR, using composition only,
+  elemental only, and both together, for 3 properties: *decomposition
+  energy, band gap, SLME*.
 
+- Best RMSE values for each property for different ML techniques and
+  different descriptors
+
+- Parity plots for best ML models for each property
+
+** Screening
+:PROPERTIES:
+:CUSTOM_ID: screeding
+:CLASS: unnumbered
+:END:
+A set of high throughput screening criteria has been previously
+developed[[cite:&mannodi-kanakkithodi-2022-data-driven]]. We apply the
+band gap criterion to the predictions made the by these enhanced models.
+
+*** TODO Compare
+screening results to the previous batch produced by older models.
+
+** Summary
+:PROPERTIES:
+:CUSTOM_ID: summary
+:CLASS: unnumbered
+:END:
+
+** CANCELED COMMENT Genetic algorithm results
+:STATUSLOG:
+- State "CANCELED"   from              [2022-09-11 Sun 19:28] \\
+  GA will have a dedicated paper
+:END:
+- Fitness score vs generation, stability only.
+
+- Fitness score vs generation, stability + band gap.
+
+- Fitness score vs generation, stability + band gap + SLME.
+
+- Performance of GA with NN/GPR/RFR and with comp/elem/comp+elem.
+
+Validation using new DFT calculations on 10 compositions in 4x4x4
+supercell. DFT vs ML properties + band structure + absorption spectra.
+
+* METHODS
+:PROPERTIES:
+:CUSTOM_ID: methods
+:CLASS: unnumbered
+:END:
 ** Outline of Work
 Computational Details
-- HT-DFT Data Generation
+- DFT Data Generation
   The current work is focused on cubic phase compounds only.
 - Experimental Data Collection
 - Data Validation
@@ -210,73 +227,7 @@ RFR, GPR, GBR
  Inverse design using Genetic Algorithm \(\rightarrow\)
 Validation of promising compounds.\\
 
-
-** All surrogate ML model results
-
-- RMSE vs training set size for NN, RFR and GPR, using composition only,
-  elemental only, and both together, for 3 properties: *decomposition
-  energy, band gap, SLME*.
-
-- Best RMSE values for each property for different ML techniques and
-  different descriptors
-
-- Parity plots for best ML models for each property
-
-** Genetic algorithm results
-
-- Fitness score vs generation, stability only.
-
-- Fitness score vs generation, stability + band gap.
-
-- Fitness score vs generation, stability + band gap + SLME.
-
-- Performance of GA with NN/GPR/RFR and with comp/elem/comp+elem.\\
-
-*Figure5:*\\
-Validation using new DFT calculations on 10 compositions in 4x4x4
-supercell. DFT vs ML properties + band structure + absorption spectra.\\
-
-** ...
-:PROPERTIES:
-:CUSTOM_ID: section-1
-:CLASS: unnumbered
-:END:
-| *Dataset*                  | *Regression* | *Site Properties* | *Defect Properties* | *Site+Defect* |
-|----------------------------+--------------+-------------------+---------------------+---------------|
-|                            |              |                   |                     |               |
-|                            | RFR          |              0.40 |                0.20 |          0.17 |
-| Training                   | KRR          |              0.40 |                0.30 |          0.20 |
-|                            | LASSO        |              0.62 |                0.50 |          0.44 |
-|                            |              |                   |                     |               |
-|                            |              |                   |                     |               |
-|                            | RFR          |              0.65 |                0.45 |          0.38 |
-| Test                       | KRR          |              0.68 |                0.40 |          0.32 |
-|                            | LASSO        |              0.75 |                0.52 |          0.47 |
-|                            |              |                   |                     |               |
-|                            |              |                   |                     |               |
-|                            | RFR          |              0.84 |                0.57 |          0.52 |
-| CdTe\(_{0.5}\)Se\(_{0.5}\) | KRR          |              0.80 |                0.65 |          0.57 |
-|                            | LASSO        |              0.95 |                0.73 |          0.65 |
-|                            |              |                   |                     |               |
-|                            |              |                   |                     |               |
-|                            | RFR          |              0.86 |                0.63 |          0.57 |
-| CdSe\(_{0.5}\)S\(_{0.5}\)  | KRR          |              0.75 |                0.68 |          0.70 |
-|                            | LASSO        |              0.92 |                0.70 |          0.72 |
-|                            |              |                   |                     |               |
-
-** Summary
-:PROPERTIES:
-:CUSTOM_ID: summary
-:CLASS: unnumbered
-:END:
-...\\
-
-* METHODS
-:PROPERTIES:
-:CUSTOM_ID: methods
-:CLASS: unnumbered
-:END:
-** DFT Details
+** TODO DFT Details
 :PROPERTIES:
 :CUSTOM_ID: dft-details
 :CLASS: unnumbered
@@ -325,25 +276,42 @@ collected data because experimental measurements have to be accurately
 matched to structure graphs, which generally must be either
 exhaustively validated or generated using specialized equipment.
 
+** Feature Extraction
+*** The Basic Feature Space
+- 14 dimensional composition vectors extracted from chemical formula
+- 36 dimensional site-averaged property space computed from composition space
+- categorical dimension one-hot-encoding level of theory
+  - pure PBE
+  - pure HSE
+  - pure HSE+SOC
+  - HSE on PBE
+- models of band gap trained on union of features
+  - Linear
+  - RFR
+  - GPR
+
+*** The Engineered Feature Space
+- SISSO
+*** the tools
+- converting formula strings to vectors
+- converting vectors to structures
+
 ** Surrogate Modeling Perovskite Properties
 :PROPERTIES:
 :CUSTOM_ID: surrogate-ml-models
 :CLASS: unnumbered
 :END:
 *** Objectives
-Our objectives are two fold:
-
-First, we aim to accurately predict performance-relevant Perovskite
-band gaps, decomposition energies, and Spectroscopically Limited Maximum
-Efficiency (SLME).
+Our objectives are two fold. First, we aim to accurately predict
+performance-relevant Perovskite band gaps.
 
 We will follow a multi-fidelity approach, where the bulk of affordable
 low level-of-theory data will inform and improve the extrapolative
 ability of models trained on higher fidelity measurements.
 
-Our fidelity hierarchy climbs from results obtained using a PBE
-functional, to results obtained using an HSE functional, to
-experimental results aggregated in literature [[cite:&almora-2020-devic-perfor]].
+Our fidelity hierarchy climbs from simulations performed using the
+basic PBE functional, to results obtained from physical experiments
+aggregated in literature[[cite:&almora-2020-devic-perfor]].
 
 We aim to express these variables as functions of the Perovskite
 composition. Schemes for incorporating structural information will be
@@ -372,15 +340,19 @@ potentially generated by these experiments, but they are the most
 noticeable in the structure of the multi-fidelity sample set as we
 have constructed it.
 *** Considerations
-We expect that perovskites of a given alloy class and of a given
-hybrid-organic/inorganic status will perform significantly
-differently, in all respects, to Perovskites of a another class or
-status. By leveraging the even distribution of constituent compounds
-in this sample set of Halide Perovskites, we can cast this problem as
-a series of cross-validations for independently trained models.
+We expect perovskites of a given alloy class and of a given
+hybrid-organic/inorganic status will perform significantly differently
+with respect to a particular application compared to perovskites of a
+another class or status. We attempt to make models that reasonably
+explain this high entropy diversity by utilizing the low entropy
+mixing represented in our sample.
 
-A minimum of 3-fold cross-validation is performed for every set of
-model parameters that is considered. 
+We do this by training each model using two test/train splits. First,
+the optimal model parameters are chosen for their performance under a
+random split. A minimum of 3-fold cross-validation is performed for
+every set of model parameters that is considered. Finally, the
+optimized model's ability to extrapolate is tested by training/testing
+on splits determined with a [[gls:gkf][groupwise K-fold]] splitting strategy.
 
 Two separate cross validation schemes are employed at each stage of
 the design process.
@@ -396,9 +368,9 @@ fold consisting of members of the other classes.
 Second, the ability for a model trained on samples belonging to one
 class/status to extrapolate to samples of another class/status is
 tested as well. The samples again are shuffled and split. then the
-training set is separated using a grouping K-fold split strategy (stratified? shuffled?)
+training set is separated using a grouping K-fold split strategy.
 
-Per architecture, a model is instantiated using the, in aggregate,
+Per architecture, a model is instantiated using the -- in aggregate --
 best performing parameters. These models are finally validated against
 the test sets originally split off from the sample in *both their
 extrapolative ability and consistency across groups.*
@@ -418,7 +390,8 @@ generated by a 3-fold cross-validation strategy. Every fitted model is
 subsequently tested against the cross-validation test sets and a suite
 of regression scoring metrics are applied simultaneously.
 
-The scoring metrics we choose vary by model architecture. See summary tables.
+The scoring metrics we choose vary by model architecture. See [[HPO
+Summary Tables]].
 
 The grid search is then narrowed to a high performance quadrant of the
 search space by the model evaluator based on recommendations made by a
@@ -430,8 +403,8 @@ In general, the recommended grid quickly eliminates under-performing
 settings based on the sample probability of a setting appearing in a
 set of finalists according to the scoring rankings. The selection
 score is additionally influenced by a weighted sum of the scoring
-ranks allowing for considerably tuning of the selection criterion.
-For best results, a few different grid spaces should be explored to
+ranks allowing for considerably tuning the selection criterion.  For
+best results, a few different grid spaces should be explored to
 corroborate eliminations.
 
 After the recommendation is made, the granularity of the grid is
@@ -439,7 +412,6 @@ increased in the remaining ambiguous parameters and the process is
 repeated.
 
 Additionally/Alternatively,
-
 
 * FUTURE WORK
 :PROPERTIES:
@@ -550,3 +522,37 @@ Correspondence and requests for materials should be addressed to A.M.K.
 :END:
 bibliographystyle:aipnum4-2
 bibliography:~/org/bibliotex/bibliotex.bib
+
+* APPENDIX
+:PROPERTIES:
+:CUSTOM_ID: APPENDIX
+:CLASS: unnumbered
+:END:
+** HPO Summary Tables
+*** RFR
+*** GPR
+
+#+name: glossary
+| label | term             | definition                                                                                                               |
+|-------+------------------+--------------------------------------------------------------------------------------------------------------------------|
+| cmix  | cardinal mixing  | Describes perovskite alloys where no more than one of the A, B, or X sites is occupied by multiple possible constituents |
+| prtn  | partition        | Portion of an accumulated data sample reserved for a purpose in model development                                        |
+| cv    | cross-validation | Method for gathering statistics on the abilities of a model to fit to the parent partition                               |
+| kfs   | K-fold split     | Data partition divided into K arbitrary groups for use in cross-validation schemes                                       |
+| gkf   | groupwise K-fold | Data partition divided into K-folds where each fold corresponds to a category label                                      |
+
+#+name: acronyms
+| label | abbreviation | full form                                     |
+|-------+--------------+-----------------------------------------------|
+| vasp  | VASP         | Vienna Ab initio Simulation Package           |
+| qmml  | QM/ML        | quantum mechanics machine learning            |
+| dft   | DFT          | density functional theory                     |
+| gga   | GGA          | generalized gradient approximation            |
+| pbe   | PBE          | Perdew-Burke-Ernzerhof                        |
+| hse   | HSE          | Heyd-Scuseria-Ernzerhof                       |
+| ma    | MA           | Methylammonium                                |
+| fa    | FA           | Formamidinium                                 |
+| hap   | HaP          | halide perovskite                             |
+| pca   | PCA          | principal component analysis                  |
+| tsne  | t-SNE        | t-distributed stochastic neighbor embedding   |
+| umap  | UMAP         | uniform manifold approximation and projection |
