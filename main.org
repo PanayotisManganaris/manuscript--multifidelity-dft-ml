@@ -437,7 +437,21 @@ partitions, which helps with the final model evaluation.
 
 *** TODO cross validation strategy
 **** using Learning Curves
-band gap scores vs training set size
+Cross-validation within the training set is the only way of checking
+the generality of models during the grid search. Identifying the
+validation split size is necessary to obtain an understanding of how
+much data is needed to train a model that can generalize.
+
+More data offers better chances. However, the smaller the split, the
+longer and more expensive the loop training becomes, e.g. 10-fold
+splits makes for 10 sample scores at each partition size. Meaning, 90%
+of the training set is used for actual training and the remaining 10%
+is used for validation and this is repeated 10 times.
+
+Shuffling is performed prior to generating each fold. The shuffle is
+seeded with a deterministic random state to ensure scores are
+comparable across partition size
+
 **** RFR results
 **** GPR results
 *** TODO Hyper-Parameter Optimization
@@ -578,9 +592,18 @@ bibliography:~/org/bibliotex/bibliotex.bib
 :CUSTOM_ID: APPENDIX
 :CLASS: unnumbered
 :END:
+** Learning Curves
+band gap scores vs training set size
+
+Notice that the error metrics are negated so that, consistently with
+the R^2 and ev scores, the greater the number, the better the model
+performs.
+
+
 ** HPO Summary Tables
 *** RFR
 *** GPR
+
 
 #+name: glossary
 | label | term             | definition                                                                                                               |

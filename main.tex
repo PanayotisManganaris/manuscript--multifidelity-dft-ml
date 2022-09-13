@@ -1,4 +1,4 @@
-% Created 2022-09-13 Tue 16:10
+% Created 2022-09-13 Tue 16:41
 % Intended LaTeX compiler: pdflatex
 \documentclass[aip, jmp, amsmath, amssymb]{revtex4-2}
 \usepackage[utf8]{inputenc}
@@ -75,8 +75,7 @@ stylemods,style=long-short,
 
 %revtex frontmatter conventions for quick recall via INCLUDE keyword
 \title{%
-Combining High-Throughput Computations, Surrogate Models, and\\
-Genetic Algorithms for Discovering Novel Halide Perovskites
+Multi-fidelity Machine Learning Pervoskite Composition vs Band Gap
 }
 %\thanks{A footnote to the article title}
 
@@ -131,9 +130,9 @@ We finally compare the band gap models based on this basic 55 dimensional descri
 domain we produced to improve model efficiency, performance, and interpretability.
 \end{abstract}
 \section*{INTRODUCTION}
-\label{sec:org7a5924d}
+\label{sec:orgde3f46e}
 \subsection*{{\bfseries\sffamily DONE} Multi-Fidelity Modeling}
-\label{sec:org03160c2}
+\label{sec:orgf24cdea}
 \begin{itemize}
 \item State "DONE"       from "TODO"       \textit{[2022-09-13 Tue 12:51]}
 \end{itemize}
@@ -170,9 +169,9 @@ models learn relationships between fidelities, not differences in
 alloy scheme or constituency distributions within each fidelity.
 
 \subsection*{{\bfseries\sffamily TODO} Dataset Overview}
-\label{sec:org1d0f90f}
+\label{sec:orgdc852cc}
 \subsubsection*{{\bfseries\sffamily DONE} Sample Representation Summary}
-\label{sec:orgc99d77b}
+\label{sec:orgddb2c7f}
 \begin{itemize}
 \item State "DONE"       from              \textit{[2022-09-13 Tue 12:51]}
 \end{itemize}
@@ -201,7 +200,7 @@ samples that represent each one of the "\gls{cmix}"
 categories. Additionally, within each mix we try to maintain a
 reasonable balance of purely inorganic samples versus hybrid
 organic-inorganic samples. See figure \ref{fig:lot_mix_org}. See section
-\hyperref[sec:org6992cbf]{METHODS} for details on how these categories were utilized in model
+\hyperref[sec:org9b441ac]{METHODS} for details on how these categories were utilized in model
 development.
 
 \begin{figure*}
@@ -242,18 +241,18 @@ The design of this dataset provides an opportunity to assess the
 ability of our models to extrapolate with respect to alloying
 scheme. It also provides an opportunity to investigate the statistical
 impact of constituent compounds on perovskite property prediction. See
-section \hyperref[sec:orgb4cd6ae]{RESULTS AND DISCUSSION}.
+section \hyperref[sec:orgaa3d2ca]{RESULTS AND DISCUSSION}.
 \subsubsection*{{\bfseries\sffamily TODO} overview of constituent correlations with bandgap}
-\label{sec:org0e6da1a}
+\label{sec:org104c3f4}
 \subsection*{{\bfseries\sffamily TODO} Developing Extrapolative Models}
-\label{sec:orgeb8df3f}
+\label{sec:org3aadd3f}
 need to introduce the significance of predicting band gaps more
 effectively
 
 reported experimental band gap values\cite{kim-2014-cdses-nanow,swanson-2017-co-sublim}
 
 \subsection*{{\bfseries\sffamily TODO} Model Optimization}
-\label{sec:org43705c5}
+\label{sec:org5d0bb03}
 The rigorous hyper-Parameter Optimization (HPO) of any feature
 engineering and modeling pipeline is a problem discussed extensively
 in the literature. HPO approaches can be broadly separated into
@@ -270,7 +269,7 @@ sets and a suite of regression scoring metrics are applied to each
 member category simultaneously using a custom scikit-learn score
 adapter.
 
-The scoring metrics we choose vary by model architecture. See the \hyperref[sec:org98352a9]{HPO Summary Tables}.
+The scoring metrics we choose vary by model architecture. See the \hyperref[sec:org22f6d9a]{HPO Summary Tables}.
 
 The grid search is then narrowed to a high performance quadrant of the
 search space by the model evaluator based on recommendations made by a
@@ -293,18 +292,18 @@ Past this point, continuously variable hyper parameters can be
 individually optimized using validation curves.
 
 \section*{RESULTS AND DISCUSSION}
-\label{sec:orgb4cd6ae}
+\label{sec:orgaa3d2ca}
 \subsection*{Domain analysis}
-\label{sec:org070485f}
+\label{sec:org64f7988}
 \subsubsection*{most explanatory basic features}
-\label{sec:orgeb21408}
+\label{sec:org3f4d106}
 \subsubsection*{engineered features}
-\label{sec:org7029928}
+\label{sec:org37ecae4}
 naturally, by utilizing GPR in conjunction with these new feature
 combinations, we can create models with the efficiency of SISSO while
 obtaining uncertainty estimates.
 \subsection*{Best Models}
-\label{sec:org5a13d7b}
+\label{sec:orgf9acfc1}
 \begin{itemize}
 \item band gap parity plots
 \item summary scores
@@ -315,21 +314,21 @@ obtaining uncertainty estimates.
 \end{itemize}
 
 \subsection*{Screening}
-\label{sec:orgafa81a1}
+\label{sec:org96edd34}
 A set of high throughput screening criteria has been previously
 developed\cite{mannodi-kanakkithodi-2022-data-driven}. We apply the
 band gap criterion to the predictions made the by these enhanced models.
 
 \subsubsection*{{\bfseries\sffamily TODO} Compare}
-\label{sec:orgc7e48b2}
+\label{sec:org214956f}
 screening results to the previous batch produced by older models.
 
 \subsection*{Summary}
-\label{sec:orgbc53911}
+\label{sec:org0af6bbc}
 GPR performs best and
 
 \section*{METHODS}
-\label{sec:org6992cbf}
+\label{sec:org9b441ac}
 Several machine learning architectures are rigorously optimized with
 regard to both generality over the domains of Perovskite compositions
 and site-averaged atomic properties and generality over the domain of
@@ -345,7 +344,7 @@ Validation curves are computed for hyper-parameters to which a given
 model is particularly sensitive.
 
 \subsection*{{\bfseries\sffamily TODO} Objectives}
-\label{sec:orgf69dcf6}
+\label{sec:org5569567}
 Our objectives are two fold. First, we aim to accurately predict
 performance-relevant Perovskite band gaps.
 
@@ -361,7 +360,7 @@ We aim to express these variables as functions of the perovskite
 composition. Schemes for incorporating structural information will be
 developed in future work. Nevertheless, a strong understanding of the
 influence of chemical composition on performance will continue to be a
-priority as it is expected to aid both in \hyperref[sec:org80c22ac]{Feature Engineering} and in
+priority as it is expected to aid both in \hyperref[sec:orgdace41d]{Feature Engineering} and in
 screening the combinatorial chemical space for viable high-entropy
 compounds.
 
@@ -377,7 +376,7 @@ that formula that fall within one of these classifications will share
 some distributed qualities with others that fit their classification.
 
 \subsection*{{\bfseries\sffamily TODO} Considerations}
-\label{sec:orgf19e9f0}
+\label{sec:org1ab9a6f}
 We expect perovskites of a given alloy class and of a given
 hybrid-organic/inorganic status will perform significantly differently
 with respect to a particular application compared to perovskites of a
@@ -413,13 +412,13 @@ best performing parameters. These models are finally validated against
 the test sets originally split off from the sample in \textbf{both their
 extrapolative ability and consistency across groups.}
 \subsection*{{\bfseries\sffamily TODO} DFT Details}
-\label{sec:orgddfc969}
+\label{sec:org6ef3da4}
 The current work is focused on cubic phase compounds only.
 \subsubsection*{{\bfseries\sffamily TODO} VASP}
-\label{sec:org66187c4}
+\label{sec:org7ecd60a}
 
 \subsubsection*{{\bfseries\sffamily TODO} Levels of Theory}
-\label{sec:org893cd9f}
+\label{sec:org2ea2fd8}
 The largest table of 490 records contains computed electronic
 properties. Each is obtained for a unique composition using static
 Density Functional Theory (DFT) simulations (relaxation, electronic)
@@ -439,7 +438,7 @@ and without spin-orbit coupling (SOC), for a total of approximately
 SOC is performed for better better electronic properties.
 
 \subsubsection*{{\bfseries\sffamily TODO} Featurization of Chemistries}
-\label{sec:orgc3b68c8}
+\label{sec:org75662a0}
 The largest subdivision of \textasciitilde{}1400 compounds correspond to a series of
 optoelectronic properties simulations performed using density
 functional theory (DFT). The simulated experiments are performed on
@@ -462,9 +461,9 @@ matched to structure graphs, which generally must be either
 exhaustively validated or generated using specialized equipment.
 
 \subsection*{{\bfseries\sffamily TODO} Feature Engineering}
-\label{sec:org80c22ac}
+\label{sec:orgdace41d}
 \subsubsection*{The Basic Feature Space}
-\label{sec:org7ed947c}
+\label{sec:org40cf0ba}
 \begin{itemize}
 \item 14 dimensional composition vectors extracted from chemical formula
 \item 36 dimensional site-averaged property space computed from composition space
@@ -484,21 +483,21 @@ exhaustively validated or generated using specialized equipment.
 \end{itemize}
 
 \subsubsection*{The Engineered Feature Space}
-\label{sec:orgcaded83}
+\label{sec:org518c1af}
 \begin{itemize}
 \item SISSO
 \end{itemize}
 \subsubsection*{the tools}
-\label{sec:org6c13da6}
+\label{sec:org21685f7}
 \begin{itemize}
 \item converting formula strings to vectors
 \item converting vectors to structures
 \end{itemize}
 
 \subsection*{{\bfseries\sffamily TODO} Model Training Procedure}
-\label{sec:orgc33e34b}
+\label{sec:org5697ba6}
 \subsubsection*{{\bfseries\sffamily TODO} partitioning}
-\label{sec:orgee9a8d2}
+\label{sec:orgfcd6ee8}
 A stratified shuffle split is used to make partitions. This split
 preserves the proportion of each \gls{lot} in the test and train
 partitions, which helps with the final model evaluation.
@@ -513,30 +512,44 @@ deny the model's ability to work outside of the training domain
 \end{itemize}
 
 \subsubsection*{{\bfseries\sffamily TODO} cross validation strategy}
-\label{sec:org3c806fd}
+\label{sec:org08b48c5}
 \begin{itemize}
 \item using Learning Curves
-\label{sec:orgb7ddf6a}
-band gap scores vs training set size
+\label{sec:org18c93ee}
+Cross-validation within the training set is the only way of checking
+the generality of models during the grid search. Identifying the
+validation split size is necessary to obtain an understanding of how
+much data is needed to train a model that can generalize.
+
+More data offers better chances. However, the smaller the split, the
+longer and more expensive the loop training becomes, e.g. 10-fold
+splits makes for 10 sample scores at each partition size. Meaning, 90\%
+of the training set is used for actual training and the remaining 10\%
+is used for validation and this is repeated 10 times.
+
+Shuffling is performed prior to generating each fold. The shuffle is
+seeded with a deterministic random state to ensure scores are
+comparable across partition size
+
 \item RFR results
-\label{sec:org1a1439f}
+\label{sec:org146bd9a}
 \item GPR results
-\label{sec:orgcda13ec}
+\label{sec:orgb861c55}
 \end{itemize}
 \subsubsection*{{\bfseries\sffamily TODO} Hyper-Parameter Optimization}
-\label{sec:orga986a85}
+\label{sec:org9f250a6}
 \begin{itemize}
 \item performance with diverse samples
-\label{sec:org1bb73ca}
+\label{sec:orgdb6eb76}
 \item performance in extrapolation
-\label{sec:orga1d7075}
+\label{sec:org04b1263}
 \item grid search with diverse samples
-\label{sec:orge4893d7}
+\label{sec:org92c34ab}
 \item validation curves
-\label{sec:org65e979d}
+\label{sec:orgdc6856f}
 \end{itemize}
 \section*{FUTURE WORK}
-\label{sec:org2415fe9}
+\label{sec:orgc753bce}
 \begin{itemize}
 \item broaden model domain to include alternative phases
 
@@ -572,13 +585,13 @@ thereby efficiently discovering the best possible cubic perovskite
 compounds.
 
 \subsection*{identify novel compounds}
-\label{sec:orgef8deee}
+\label{sec:orgae066fc}
 already, screening has been used to successfully identify some curious options
 
 what more can I add to this?
 
 \subsection*{utilize convolutional graph neural networks}
-\label{sec:orga6d8948}
+\label{sec:orga9b02ef}
 enabling structure->target models
 \begin{itemize}
 \item MEGnet scalable graph networks for polymorph-sensitive property
@@ -595,7 +608,7 @@ Already, multi-fidelity "MFGnet" models are being developed under the graph
 learning paradigm\cite{chen-2020-multi-fidel}.
 
 \subsection*{Software Tools}
-\label{sec:org9b86ae9}
+\label{sec:orgc42fb15}
 A couple of libraries are in development for easing the aggregation,
 accessing, sharing, and analysis of this data. The current database is
 packaged in "cmcl" at \url{http://github.com/PanayotisManganaris/cmcl} under
@@ -611,7 +624,7 @@ maintained in the "yogi" repository at
 \url{http://github.com/PanayotisManganaris/yogi}
 
 \section*{ACKNOWLEDGMENTS}
-\label{sec:org1417c31}
+\label{sec:org39968d3}
 We acknowledge funding from the US Department of Energy SunShot program
 under contract \#DOE DEEE005956. Use of the Center for Nanoscale
 Materials, an Office of Science user facility, was supported by the U.S.
@@ -632,36 +645,45 @@ Sciences, Geosciences, and Biosciences, under Contract No.
 DE-AC02-06CH11357.
 
 \subsection*{Author Contributions}
-\label{sec:org1ea4ad2}
+\label{sec:org297d648}
 A.M.K. conceived the idea. A.M.K. and J.Y. performed the DFT
 computations. P.T.M. Trained ML models. All authors contributed to the
 discussion and writing of the manuscript.
 
 \subsection*{Data Availability}
-\label{sec:org13fcbf0}
+\label{sec:org2602a12}
 DFT data and ML models are available from the corresponding author
 upon reasonable request. All documents are tracked in the
 \url{https://github.com/PanayotisManganaris/manusciprt--multifidelity-dft-ml.git}
 online repository
 
 \subsection*{Additional Information}
-\label{sec:orga773352}
+\label{sec:orgc75024b}
 The authors declare no competing financial or non-financial interests.
 
 Correspondence and requests for materials should be addressed to A.M.K.
 (email:amannodi@purdue.edu).
 
 \section*{}
-\label{sec:org872d683}
+\label{sec:org9b36056}
 \bibliographystyle{aipnum4-2}
 \bibliography{../../../org/bibliotex/bibliotex}
 
 \section*{APPENDIX}
-\label{sec:orga73ae8a}
+\label{sec:org9a4ad7b}
+\subsection*{Learning Curves}
+\label{sec:orga48529c}
+band gap scores vs training set size
+
+Notice that the error metrics are negated so that, consistently with
+the R\textsuperscript{2} and ev scores, the greater the number, the better the model
+performs.
+
+
 \subsection*{HPO Summary Tables}
-\label{sec:org98352a9}
+\label{sec:org22f6d9a}
 \subsubsection*{RFR}
-\label{sec:orgf86384d}
+\label{sec:org643e74b}
 \subsubsection*{GPR}
-\label{sec:org37fef4c}
+\label{sec:org6d7c9c8}
 \end{document}

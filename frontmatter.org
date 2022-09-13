@@ -1,8 +1,7 @@
 #+begin_export latex
 %revtex frontmatter conventions for quick recall via INCLUDE keyword
 \title{%
-Combining High-Throughput Computations, Surrogate Models, and\\
-Genetic Algorithms for Discovering Novel Halide Perovskites
+Multi-fidelity Machine Learning Pervoskite Composition vs Band Gap
 }
 %\thanks{A footnote to the article title}
 
