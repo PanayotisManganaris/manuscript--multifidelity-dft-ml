@@ -6,7 +6,7 @@
 #+INCLUDE: /home/panos/MannodiGroup/publications/Commun-Mat_DFT+ML+GA/dev_dependencies.org
 * load data
 #+INCLUDE: /home/panos/MannodiGroup/publications/Commun-Mat_DFT+ML+GA/load_full_domain.org
-* representation
+* category representation
 #+begin_src jupyter-python :file ./lot-mix-org_sunburst.png
   p = px.sunburst(my, path=['LoT','mix','org'])
   p.show(renderer='png')
@@ -25,103 +25,30 @@
 #+RESULTS:
 :results:
 :end:
-* CANCELED COMMENT OLD plot shares
-:STATUSLOG:
-- State "CANCELED"   from              [2022-09-12 Mon 19:28] \\
-  outdated
-:END:
+
+* constituent shares
+#+begin_src jupyter-python :file ./lot-mix-comp_sunburst.png
+  p = px.sunburst(mc.join(my[['mix','LoT']])
+                    .groupby(['mix','LoT'])
+                    .count().reset_index().melt(id_vars=['mix','LoT']),
+                  path=['LoT','mix','variable'], values='value')
+  p.show(renderer='png')
+#+end_src
+
+#+RESULTS:
+:results:
+: /tmp/ipykernel_147365/525600925.py:1: FutureWarning:
+: 
+: merging between different levels is deprecated and will be removed in a future version. (2 levels on the left, 1 on the right)
+: 
+#+attr_org: :width 700
+[[file:./lot-mix-comp_sunburst.png]]
+:end:
+
 #+begin_src jupyter-python
-  #mix fractions visualized
-  mydpi=192
-
-  #label functions
-  def absolute_value(val, series):
-      a  = np.round(val/100.*series.values.sum(), 0)
-      return int(a)
-  #font settings
-  titlefont = {'family': 'Arial', 'color': 'black', 'weight': 'bold', 'size': 32}
-  titlefont2 = {'family': 'Arial', 'weight': 'bold', 'size': 17}
-  labelfont = {'family': 'Arial', 'color': 'black', 'weight': 'normal', 'size': 30}
-  annotfont = {'family': 'Arial', 'color': 'black', 'weight': 'normal', 'size': 20}
-  annotfont2 = {'family': 'Arial', 'color': 'black', 'weight': 'normal', 'size': 14}
+  p.write_html('./Dataset_Overview/lot-mix-comp_sunburst.html', include_plotlyjs='../plotly.min.js')
 #+end_src
 
 #+RESULTS:
-** PBE
-#+begin_src jupyter-python :exports results :results raw drawer
-  PBE_absolute_value = partial(absolute_value, series = PBE_alloy_share)
-  fig1, ax = plt.subplots(1,1, figsize=(1600/mydpi, 1600/mydpi), dpi=mydpi)
-  ax = PBE_alloy_share.plot.pie(ax=ax, autopct=PBE_absolute_value, textprops=annotfont)
-  ax.set_title("Alloy Representation", fontdict=titlefont)
-  ax.set_xlabel("", fontdict=labelfont)
-  ax.set_ylabel("")
-
-  fig2, ax = plt.subplots(1,1, figsize=(1600/mydpi, 1600/mydpi), dpi=mydpi)
-  ax = PBE_total.plot.pie(ax=ax, autopct=lambda x: f"{x:.2f}" + "%", pctdistance=0.8, textprops=annotfont)
-  ax.set_title("Constituent Representation", fontdict=titlefont)
-  ax.set_xlabel(ax.get_ylabel(), fontdict=labelfont)
-  ax.set_ylabel("")
-
-  fig3, axar = plt.subplots(2,2, figsize=(2400/mydpi, 2400/mydpi), dpi=mydpi)
-  axar = PBE_total_group.T.drop("B_&_X", axis=1).plot.pie(ax=axar, subplots=True, autopct=lambda x: f"{x:.2f}" + "%", pctdistance=0.8, radius=1.05, legend=False, textprops=annotfont2)
-  for ax in axar:
-      ax.set_xlabel(ax.get_ylabel(), fontdict=labelfont)
-      ax.set_ylabel("")
-  fig3.tight_layout()
-  fig3.suptitle("Constituent Representation\nby Alloy Scheme")
-
-  fig1.savefig("./PBE_Alloy_Representations.png", dpi = mydpi, transparent=True)
-  fig2.savefig("./PBE_Constituent_Representations.png", dpi = mydpi, transparent=True)
-  fig3.savefig("./PBE_Constituent_Representations_per_Scheme.png", dpi = mydpi, transparent=True)
-
-  plt.show()
-#+end_src
-
-#+RESULTS:
-:RESULTS:
-#+attr_latex: :width 200
-[[file:./.ob-jupyter/5c7acae88cf6e59b47e9de4280b69275b9433db7.png]]
-[[file:./.ob-jupyter/cb12e84d33f431500707e715a45dea05a4c61a5f.png]]
-#+attr_latex: :width 400
-[[file:./.ob-jupyter/2c77861310f84747b920fe45775ca8b47b5f0c1f.png]]
-:END:
-
-** HSE
-#+begin_src jupyter-python :exports results :results raw drawer
-  HSE_absolute_value = partial(absolute_value, series = HSE_alloy_share)
-  fig1, ax = plt.subplots(1,1, figsize=(1600/mydpi, 1600/mydpi), dpi=mydpi)
-  ax = HSE_alloy_share.plot.pie(ax=ax, autopct=HSE_absolute_value, textprops=annotfont)
-  ax.set_title("Alloy Representation", fontdict=titlefont)
-  ax.set_xlabel("", fontdict=labelfont)
-  ax.set_ylabel("")
-
-  fig2, ax = plt.subplots(1,1, figsize=(1600/mydpi, 1600/mydpi), dpi=mydpi)
-  ax = HSE_total.plot.pie(ax=ax, autopct=lambda x: f"{x:.2f}" + "%", pctdistance=0.8, textprops=annotfont)
-  ax.set_title("Constituent Representation", fontdict=titlefont)
-  ax.set_xlabel(ax.get_ylabel(), fontdict=labelfont)
-  ax.set_ylabel("")
-
-  fig3, axar = plt.subplots(2,2, figsize=(2400/mydpi, 2400/mydpi), dpi=mydpi)
-  axar = HSE_total_group.T.plot.pie(ax=axar, subplots=True, autopct=lambda x: f"{x:.2f}" + "%", pctdistance=0.8, radius=1.05, legend=False, textprops=annotfont2)
-  for ax in axar:
-      ax.set_xlabel(ax.get_ylabel(), fontdict=labelfont)
-      ax.set_ylabel("")
-  fig3.tight_layout()
-  fig3.suptitle("Constituent Representation\nby Alloy Scheme")
-
-  fig1.savefig("./HSE_Alloy_Representations.png", dpi = mydpi, transparent=True)
-  fig2.savefig("./HSE_Constituent_Representations.png", dpi = mydpi, transparent=True)
-  fig3.savefig("./HSE_Constituent_Representations_per_Scheme.png", dpi = mydpi, transparent=True)
-
-  plt.show()
-#+end_src
-
-#+RESULTS:
-:RESULTS:
-#+attr_latex: :width 200
-[[file:./.ob-jupyter/d6a27e25f9fdd741a60b97946aea76d2c40cce44.png]]
-[[file:./.ob-jupyter/bf6e656bcc74d4ac9a08eeb2743037f8fabb51da.png]]
-#+attr_latex: :width 400
-[[file:./.ob-jupyter/b151d95edbddd176090ef2277c5f08b992e40935.png]]
-:END:
-
+:results:
+:end:
