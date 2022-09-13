@@ -1,161 +1,36 @@
-#+options: ':nil *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline
-#+options: author:t broken-links:nil c:nil creator:nil
-#+options: d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t num:t
-#+options: p:nil pri:nil prop:nil stat:t tags:t tasks:t tex:t
-#+options: timestamp:t title:t toc:t todo:t |:t
 #+title: data_distributions
-#+date: <2022-04-12 Tue>
 #+author: Panayotis Manganaris
 #+email: panos.manganaris@gmail.com
-#+language: en
-#+select_tags: export
-#+exclude_tags: noexport
-#+creator: Emacs 29.0.50 (Org mode 9.5.2)
-#+cite_export:
-#+PROPERTY: header-args :session aikit :kernel aikit
+#+PROPERTY: header-args :session mrg :kernel mrg :async yes :pandoc org :results raw drawer
 * dependencies
-#+begin_src jupyter-python :exports results :results raw drawer
-  %load_ext autoreload
-  %autoreload 2
-#+end_src
-
-#+RESULTS:
-: The autoreload extension is already loaded. To reload it, use:
-:   %reload_ext autoreload
-  
-#+begin_src jupyter-python :exports results :results raw drawer
-  import sys
-  sys.path.append("/home/panos/src/cmcl")
-  sys.path.append("/home/panos/src/yogi")
-  # featurization
-  from cmcl.data.frame import *
-  from cmcl.features.categories import Categories
-#+end_src
-
-#+RESULTS:
-
-#+begin_src jupyter-python :exports results :results raw drawer
-  # data tools
-  import sqlite3
-  import pandas as pd
-  import numpy as np
-  import matplotlib.pyplot as plt
-  from functools import partial
-#+end_src
-
-#+RESULTS:
+#+INCLUDE: /home/panos/MannodiGroup/publications/Commun-Mat_DFT+ML+GA/dev_dependencies.org
 * load data
-#+begin_src jupyter-python :exports results :results raw drawer
-  sqlbase = """SELECT *
-              FROM mannodi_base"""
-  sqlalmora = """SELECT *
-                 FROM almora_agg"""
-  with sqlite3.connect("/home/panos/src/cmcl/cmcl/db/perovskites.db") as conn:
-      df = pd.read_sql(sqlbase, conn, index_col="index")
-      almora = pd.read_sql(sqlalmora, conn, index_col='index')
+#+INCLUDE: /home/panos/MannodiGroup/publications/Commun-Mat_DFT+ML+GA/load_full_domain.org
+* representation
+#+begin_src jupyter-python :file ./lot-mix-org_sunburst.png
+  p = px.sunburst(my, path=['LoT','mix','org'])
+  p.show(renderer='png')
 #+end_src
 
 #+RESULTS:
-* Clean Data
-#+begin_src jupyter-python :exports results :results raw drawer
-  lookup = lookup.set_index("Formula")
-  df = df.set_index(["Formula", "sim_cell"], append=True)
-  almora = almora.set_index("Formula")
-#+end_src
+:results:
+#+attr_org: :width 700
+[[file:./lot-mix-org_sunburst.png]]
+:end:
 
-#+begin_src jupyter-python :exports results :results raw drawer
-  almora = almora.drop(almora.filter(regex="(^X|^B|^A|^[A-Z]+[a-z]?$)").columns, axis=1)
-  almora = almora.drop("Mixing", axis=1)
+#+begin_src jupyter-python
+  p.write_html('./Dataset_Overview/lot-mix-org_sunburst.html', include_plotlyjs='../plotly.min.js')
 #+end_src
 
 #+RESULTS:
-
-** manual subset index + subset constituents
-- drop formula with large lattice parameter difference between HSE and PBE (calculation to be rerun)
-- large structural deformation identified by observing cubicity metric -- well outside of 5-10% spec?
-#+begin_src jupyter-python :exports results :results raw drawer
-  df = df.drop(index=["Rb0.375Cs0.625GeBr3", "RbGeBr1.125Cl1.875", "K0.75Cs0.25GeI3", "K8Sn8I9Cl15"], level=1)
-  maincomp = df.ft.comp().iloc[:, :14:]
-  empcomp = df.ft.comp().loc[:, ["FA", "MA", "Cs", "Pb", "Sn", "I", "Br", "Cl"]]
-#+end_src
-
-#+RESULTS:
-
-** auto subset index
-#+begin_src jupyter-python :exports results :results raw drawer
-  size = df.index.isin(["2x2x2"], level="sim_cell")
-  #maincomp
-  maincomp = maincomp.collect.abx()
-  mcg = maincomp.groupby(level=0, axis=1).sum()
-  mvB, mvX, mvA, = mcg.A.isin([1, 8]), mcg.B.isin([1, 8]), mcg.X.isin([3, 24])
-  #subset indexes
-  mfocus = size*mvB*mvA*mvX
-#+end_src
-
-#+RESULTS:
-: /opt/miniconda3/envs/aikit/lib/python3.9/site-packages/pandas/core/computation/expressions.py:204: UserWarning: evaluating in Python space because the '*' operator is not supported by numexpr for the bool dtype, use '&' instead
-:   warnings.warn(
-
-** apply subsets
-#+begin_src jupyter-python :exports results :results raw drawer
-  mc = maincomp[mfocus]
-  ec = empcomp[efocus]
-  mys = df[mfocus]
-  eys = df[efocus] #only 56 compounds
-#+end_src
-
-#+RESULTS:
-
-* make and label shares
-#+begin_src jupyter-python :exports results :results raw drawer
-  mixlog = mc.groupby(level=0, axis=1).count()
-  mix = mixlog.pipe(Categories.logif, condition=lambda x: x>1, default="pure", catstring="_&_")
-  mix.name="mixing"
-  PBE_comp = mc.join(mix).set_index("mixing", append=True)
-  PBE_comp.columns = pd.MultiIndex.from_tuples(PBE_comp.columns)
-  HSE_comp = mc.reindex(index=df.dropna(how="any", axis=0).index)
-  HSE_comp = HSE_comp.join(mix).set_index("mixing", append=True)
-  HSE_comp.columns = pd.MultiIndex.from_tuples(HSE_comp.columns)
-#+end_src
-
-#+RESULTS:
-: /opt/miniconda3/envs/aikit/lib/python3.9/site-packages/pandas/core/reshape/merge.py:648: UserWarning: merging between different levels can give an unintended result (2 levels on the left,1 on the right)
-:   warnings.warn(msg, UserWarning)
-: /opt/miniconda3/envs/aikit/lib/python3.9/site-packages/pandas/core/reshape/merge.py:648: UserWarning: merging between different levels can give an unintended result (2 levels on the left,1 on the right)
-:   warnings.warn(msg, UserWarning)
-
-** alloy shares
-#+begin_src jupyter-python :exports results :results raw drawer
-  PBE_alloy_group = PBE_comp.groupby(level=["mixing"])
-  HSE_alloy_group = HSE_comp.groupby(level=["mixing"])
-  PBE_alloy_share = PBE_alloy_group.apply(len)
-  PBE_alloy_share.name=""
-  HSE_alloy_share = HSE_alloy_group.apply(len)
-  HSE_alloy_share.name=""
-#+end_src
-
-#+RESULTS:
-
-** total comp
-#+begin_src jupyter-python :exports results :results raw drawer :pandoc org
-  PBE_total = PBE_comp.count()
-  PBE_total.name = "Total"
-  HSE_total = HSE_comp.count()
-  HSE_total.name = "Total"
-#+end_src
-
-#+RESULTS:
-
-** comp per group
-#+begin_src jupyter-python :exports results :results raw drawer :pandoc org
-  PBE_total_group = PBE_alloy_group.count()
-  HSE_total_group = HSE_alloy_group.count()
-#+end_src
-
-#+RESULTS:
-
-* plot shares
-#+begin_src jupyter-python :exports results :results raw drawer
+:results:
+:end:
+* CANCELED COMMENT OLD plot shares
+:STATUSLOG:
+- State "CANCELED"   from              [2022-09-12 Mon 19:28] \\
+  outdated
+:END:
+#+begin_src jupyter-python
   #mix fractions visualized
   mydpi=192
 
@@ -249,3 +124,4 @@
 #+attr_latex: :width 400
 [[file:./.ob-jupyter/b151d95edbddd176090ef2277c5f08b992e40935.png]]
 :END:
+
