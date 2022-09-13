@@ -60,15 +60,71 @@ domain we produced to improve model efficiency, performance, and interpretabilit
 :CUSTOM_ID: introduction
 :CLASS: unnumbered
 :END:
-** Dataset Overview
-*** Sample Representation Summary
+** DONE Multi-Fidelity Modeling
+:STATUSLOG:
+- State "DONE"       from "TODO"       [2022-09-13 Tue 12:51]
+:END:
+The problem with modeling low availability, high fidelity targets is
+approached in multiple ways in the literature.
+
+- Semi-supervised learning approaches
+
+  need details
+
+- sequential approaches
+
+  sequential approaches involve training a model architecture on
+  larger quantities of low fidelity data, gaining insight into rough
+  patterns which are then conducive to improving the quality of
+  predictions
+
+We will employ this sequential approach where the largest, lowest
+fidelity component of our dataset consists of [[acrfull:dft][density functional
+theory (DFT)]] band gap predictions made at the [[acrfull:gga][generalized gradient
+approximation (GGA)]] [[acrfull:pbe][Perdew-Burke-Ernzerhof (PBE)]] [[gls:lot][level of theory]]. On
+the other end, the smallest and highest fidelity subset of the sample
+consists of experimental measurements of physical devices.
+
 The dataset utilized for the development of these models is
 accumulated from multiple experiments conducted at various
-fidelities. However, each experiment is performed on some number of
-members of the same subset of the total 37785 compositions that can be
+fidelities. Therefore, naturally, the statistics obtained from each
+fidelity are unequal. This is the primary challenge we will address
+with a multi-fidelity model development approach.
+
+Beyond this, we are careful to maintain the diversity of categories
+member to each fidelity subset. We expect this will help to ensure the
+models learn relationships between fidelities, not differences in
+alloy scheme or constituency distributions within each fidelity.
+
+** TODO Dataset Overview
+# not every scrap of data collected in the experiments was included in the sample
+# standard cleaning and deduping operations need only be mentioned
+*** DONE Sample Representation Summary
+:STATUSLOG:
+- State "DONE"       from              [2022-09-13 Tue 12:51]
+:END:
+For each fidelity, each experiment is performed on some number of
+members to a fixed subset of the total 37785 compositions that can be
 made in a 2x2x2 perovskite supercell when allowing at most single-site
-alloying. See section [[METHODS]] for details on how the categories seen
-in figure ref:fig:lot_mix_org were utilized in model development.
+alloying with our 14 constituents (table ref:tbl:site_tbl).
+
+#+caption: label:tbl:site_tbl ABX_3 Chemical Domain
+| A-site | B-site | X-site |
+|--------+--------+--------|
+| MA     | Pb     | I      |
+| FA     | Sn     | Br     |
+| Cs     | Ge     | Cl     |
+| Rb     | Ba     |        |
+| K      | Sr     |        |
+|        | Ca     |        |
+
+Within this sample space, we try to maintain a balance in the share of
+samples that represent each one of the "[[gls:cmix][cardinal mixing]]"
+categories. Additionally, within each mix we try to maintain a
+reasonable balance of purely inorganic samples versus hybrid
+organic-inorganic samples. See figure ref:fig:lot_mix_org. See section
+[[METHODS]] for details on how these categories were utilized in model
+development.
 
 #+ATTR_LATEX: :float multicolumn
 #+CAPTION: \label{fig:lot_mix_org}
@@ -97,37 +153,19 @@ in figure ref:fig:lot_mix_org were utilized in model development.
 The design of this dataset provides an opportunity to assess the
 ability of our models to extrapolate with respect to alloying
 scheme. It also provides an opportunity to investigate the statistical
-impact of constituent compounds on Perovskite property performance.
-
-This will be done by performing model optimization on random
-cross-validation folds as well as on
-
-*** Quick visualization of PBE data + correlations with descriptors
-
-** TODO Multi-Fidelity Modeling
-
-The problem with modeling low availability, high fidelity targets is
-approached in multiple ways in the literature.
-
-- Semi-supervised learning approaches
-
-  need details
-
-- sequential approaches
-
-  sequential approaches involve training a model architecture on
-  larger quantities of low fidelity data, gaining insight into rough
-  patterns which are then conducive to improving the quality of
-  predictions
-
-** COMMENT Developing Extrapolative Models
+impact of constituent compounds on perovskite property prediction. See
+section [[RESULTS]].
+*** TODO overview of constituent correlations with bandgap
+** TODO Developing Extrapolative Models
 #+CAPTION:\label{fig:outline} 
 #+attr_latex: scale=0.75
 
-need to introduce the significance of predicting band gaps more effectively
+need to introduce the significance of predicting band gaps more
+effectively
 
 reported experimental band gap values[[cite:&kim-2014-cdses-nanow;&swanson-2017-co-sublim]]
-** Model Optimization
+
+** TODO Model Optimization
 The rigorous hyper-Parameter Optimization (HPO) of any feature
 engineering and modeling pipeline is a problem discussed extensively
 in the literature. HPO approaches can be broadly separated into
@@ -138,18 +176,22 @@ selecting the best model parameters.
 The first stage is an exhaustive grid-search over diversely sampled
 parameter space. Each combination of parameters instantiates a model
 which is then fit to each of a set of stratified training subsets
-generated by a 3-fold cross-validation strategy. Every fitted model is
-subsequently tested against the cross-validation test sets and a suite
-of regression scoring metrics are applied simultaneously.
+generated by a K=3 [[gls:kfs][K-fold split]] [[gls:cv][cross-validation]] strategy. Every
+fitted model is subsequently tested against the [[gls:cv][cross-validation]] test
+sets and a suite of regression scoring metrics are applied to each
+member category simultaneously using a custom scikit-learn score
+adapter.
 
-The scoring metrics we choose vary by model architecture. See the
-Appendix [[HPO Summary Tables]].
+The scoring metrics we choose vary by model architecture. See the [[HPO
+Summary Tables]].
 
 The grid search is then narrowed to a high performance quadrant of the
 search space by the model evaluator based on recommendations made by a
-simple entropy minimization algorithm implemented in the "yogi"
-supplementary package under the yogi.model_selection.butler module --
-see documentation for the various grid-narrowing strategies available.
+simple entropy minimization algorithm.
+
+# implemented in the "yogi"
+# supplementary package under the yogi.model_selection.butler module --
+# see documentation for the various grid-narrowing strategies available.
 
 In general, the recommended grid quickly eliminates under-performing
 settings based on the sample probability of a setting appearing in a
@@ -161,8 +203,11 @@ corroborate eliminations.
 
 After the recommendation is made, the granularity of the grid is
 increased in the remaining ambiguous parameters and the process is
-repeated.
+repeated. In general, no more than 2 or 3 exhaustive searches are
+needed over a given set of grids.
 
+Past this point, continuously variable hyper parameters can be
+individually optimized using validation curves.
 
 * RESULTS AND DISCUSSION
 :PROPERTIES:
@@ -199,7 +244,7 @@ screening results to the previous batch produced by older models.
 :CLASS: unnumbered
 :END:
 
-GPR performs best and 
+GPR performs best and
 
 ** CANCELED COMMENT Genetic algorithm results
 :STATUSLOG:
@@ -222,6 +267,20 @@ supercell. DFT vs ML properties + band structure + absorption spectra.
 :CUSTOM_ID: methods
 :CLASS: unnumbered
 :END:
+Several machine learning architectures are rigorously optimized with
+regard to both generality over the domains of Perovskite compositions
+and site-averaged atomic properties and generality over the domain of
+alloy classifications.
+
+In order to control for the classification biases potentially acting
+on the parameter space of regression models, nine metrics are used to
+evaluate the performance of each model over all alloy types at every
+stage of the hyper-parameter optimization simultaneously. Only models
+that perform uniformly well on all alloy classes are selected.
+
+Validation curves are computed for hyper-parameters to which a given
+model is particularly sensitive.
+
 ** TODO Objectives
 Our objectives are two fold. First, we aim to accurately predict
 performance-relevant Perovskite band gaps.
@@ -234,16 +293,15 @@ Our fidelity hierarchy climbs from simulations performed using the
 basic PBE functional, to results obtained from physical experiments
 aggregated in literature[[cite:&almora-2020-devic-perfor]].
 
-We aim to express these variables as functions of the Perovskite
+# a lot of that was redundant
+
+We aim to express these variables as functions of the perovskite
 composition. Schemes for incorporating structural information will be
 developed in future work. Nevertheless, a strong understanding of the
 influence of chemical composition on performance will continue to be a
-priority as it is expected to aid in screening the combinatorial
-chemical space for viable compounds based on both available precursors
-and performance criteria.
-
-Furthermore, chemical data can already be mined for a rich feature set
-as previously discussed.
+priority as it is expected to aid both in [[Feature Engineering]] and in
+screening the combinatorial chemical space for viable high-entropy
+compounds.
 
 Second, we hope to better understand the average physical impacts
 of 1) site-specific alloying and 2) using organic molecules in the
@@ -256,10 +314,6 @@ in the data statistics. Our model development will test the hypothesis
 that formula that fall within one of these classifications will share
 some distributed qualities with others that fit their classification.
 
-These are certainly not the only groups of dependent samples
-potentially generated by these experiments, but they are the most
-noticeable in the structure of the multi-fidelity sample set as we
-have constructed it.
 ** TODO Considerations
 We expect perovskites of a given alloy class and of a given
 hybrid-organic/inorganic status will perform significantly differently
@@ -295,46 +349,12 @@ Per architecture, a model is instantiated using the -- in aggregate --
 best performing parameters. These models are finally validated against
 the test sets originally split off from the sample in *both their
 extrapolative ability and consistency across groups.*
-** Outline of Work
-Computational Details
-- DFT Data Generation
-  The current work is focused on cubic phase compounds only.
-- Experimental Data Collection
-- Data Validation
-  some records were excluded from the present analysis based on an
-  excessive deviation-from-cubicity as measured by:
-
-  DFC Equations
-
-Descriptors and correlations
-- physical aspect of numerical descriptors
-
-Several machine learning architectures are rigorously optimized with
-regard to both generality over the domains of Perovskite compositions
-and site-averaged atomic properties and generality over the domain of
-alloy classifications.
-
-In order to control for the classification biases potentially acting
-on the parameter space of regression models, nine metrics are used to
-evaluate the performance of each model over all alloy types at every
-stage of the hyper-parameter optimization simultaneously. Only models
-that perform uniformly well on all alloy classes are selected.
-
-Validation curves are computed for hyper-parameters to which a given
-model is particularly sensitive.
-
-
-
-RFR, GPR, GBR
- Inverse design using Genetic Algorithm \(\rightarrow\)
-Validation of promising compounds.\\
-
 ** TODO DFT Details
 :PROPERTIES:
 :CUSTOM_ID: dft-details
 :CLASS: unnumbered
 :END:
-...\\
+The current work is focused on cubic phase compounds only.
 *** TODO VASP
 
 *** TODO Levels of Theory
@@ -378,15 +398,15 @@ collected data because experimental measurements have to be accurately
 matched to structure graphs, which generally must be either
 exhaustively validated or generated using specialized equipment.
 
-** TODO Feature Extraction
+** TODO Feature Engineering
 *** The Basic Feature Space
 - 14 dimensional composition vectors extracted from chemical formula
 - 36 dimensional site-averaged property space computed from composition space
 - categorical dimension one-hot-encoding level of theory
-  - pure PBE
-  - pure HSE
-  - pure HSE+SOC
-  - HSE on PBE
+  - PBE on PBE
+  - HSE on HSE
+  - HSE+SOC on HSE
+  - HSE+soc on PBE
 - models of band gap trained on union of features
   - Linear
   - RFR
@@ -399,12 +419,16 @@ exhaustively validated or generated using specialized equipment.
 - converting vectors to structures
 
 ** TODO Model Training Procedure
-*** TODO Learning Curves
+*** TODO cross validation strategy
+**** using Learning Curves
 band gap scores vs training set size
-**** RFR
-**** GPR
+**** RFR results
+**** GPR results
 *** TODO Hyper-Parameter Optimization
-
+**** performance with diverse samples
+**** performance in extrapolation
+**** grid search with diverse samples
+**** validation curves
 * FUTURE WORK
 :PROPERTIES:
 :CUSTOM_ID: future
@@ -546,10 +570,11 @@ bibliography:~/org/bibliotex/bibliotex.bib
 | label | term             | definition                                                                                                               |
 |-------+------------------+--------------------------------------------------------------------------------------------------------------------------|
 | cmix  | cardinal mixing  | Describes perovskite alloys where no more than one of the A, B, or X sites is occupied by multiple possible constituents |
-| prtn  | partition        | Portion of an accumulated data sample reserved for a purpose in model development                                        |
+| prtn  | partition        | Portion of sample data reserved for a purpose in model development                                                       |
 | cv    | cross-validation | Method for gathering statistics on the abilities of a model to fit to the parent partition                               |
 | kfs   | K-fold split     | Data partition divided into K arbitrary groups for use in cross-validation schemes                                       |
 | gkf   | groupwise K-fold | Data partition divided into K-folds where each fold corresponds to a category label                                      |
+| lot   | level of theory  | Refers to the rank of a [[ACRshort:dft][DFT]] functional in the hierarchy of phenomenological comprehensiveness. A proxy for accuracy.     |
 
 #+name: acronyms
 | label | abbreviation | full form                                     |
