@@ -1,0 +1,64 @@
+#+title: Generic Dependencies For All Modeling and Plotting
+#+AUTHOR: Panayotis Manganaris
+#+EMAIL: pmangana@purdue.edu
+#+PROPERTY: header-args :session mrg :kernel mrg :async yes :pandoc org :results raw drawer
+* COMMENT DEV dependencies
+#+begin_src jupyter-python
+  %load_ext autoreload
+  %autoreload 2
+#+end_src
+  
+#+begin_src jupyter-python
+  import sys, os
+  sys.path.append(os.path.expanduser("~/src/cmcl"))
+  sys.path.append(os.path.expanduser("~/src/yogi"))
+  sys.path.append(os.path.expanduser("~/src/spyglass"))
+#+end_src
+
+#+begin_src jupyter-python
+  # featurization
+  import cmcl
+  from cmcl import Categories
+  # multi-criterion model evaluation
+  from yogi.transforms import join3, robust_compare
+  from yogi.indexing import strings_where
+  from yogi.model_selection import summarize_HPO
+  from yogi.model_selection import pandas_validation_curve as pvc
+  from yogi.metrics import PandasScoreAdaptor as PSA
+  from yogi.metrics import batch_score, test_generality
+  # visualization convenience
+  from spyglass import parityplot, biplot
+#+end_src
+  
+#+begin_src jupyter-python
+  from sklearnex import patch_sklearn
+  #patch_sklearn()
+#+end_src
+
+#+begin_src jupyter-python
+  # data tools
+  import sqlite3
+  import pandas as pd
+  import numpy as np
+  # feature engineering
+  from sklearn.impute import SimpleImputer
+  from sklearn.preprocessing import OrdinalEncoder, Normalizer, StandardScaler
+  from sklearn.preprocessing import FunctionTransformer, MinMaxScaler
+  ## pipeline workflow
+  from sklearn.pipeline import make_pipeline as mkpipe
+  from sklearn.compose import ColumnTransformer as colt
+  from sklearn.preprocessing import OneHotEncoder as ohe
+  from sklearn.model_selection import KFold, GroupKFold
+  from sklearn.model_selection import learning_curve, validation_curve
+  from sklearn.model_selection import StratifiedShuffleSplit
+  from sklearn.model_selection import GridSearchCV as gsCV
+  # model eval
+  from sklearn.metrics import make_scorer, mean_squared_error, r2_score, explained_variance_score, max_error
+  import joblib
+  from sklearn.base import clone
+  #visualization
+  from sklearn import set_config
+  set_config(display="text")
+  from sklearn.utils import estimator_html_repr
+  import plotly.express as px
+#+end_src
