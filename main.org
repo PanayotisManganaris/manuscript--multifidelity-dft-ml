@@ -8,14 +8,10 @@
 #+select_tags: export
 #+exclude_tags: noexport
 #+creator: Emacs 29.0.50 (Org mode 9.5.2)
-#+cite_export:
+#+cite_export: natbib kluwer
 #+latex_class: revtex
 #+latex_class_options: [aip, jmp, amsmath, amssymb]
-#+latex_header: \usepackage[acronym,nogroupskip,nonumberlist]{glossaries}
-#+latex_header: \usepackage[%
-#+latex_header: stylemods,style=long-short,
-#+latex_header: ]{glossaries-extra}
-#+latex_header: \makeglossaries
+#+latex_header:
 #+latex_header_extra:
 #+description:
 #+keywords:
@@ -68,8 +64,9 @@ domain we produced to improve model efficiency, performance, and interpretabilit
 :STATUSLOG:
 - State "DONE"       from "TODO"       [2022-09-13 Tue 12:51]
 :END:
-The problem with modeling low availability, high fidelity targets is
-approached in multiple ways in the literature.
+The problem of modeling low availability, high fidelity targets is
+approached with a diverse selection of multi-fidelity learning
+techniques in the literature. These techniques 
 
 - Semi-supervised learning approaches
 
@@ -230,13 +227,29 @@ obtaining uncertainty estimates.
   - best scores
   - best extrapolative ability
 
+** model introspection
+*** linear models
+To illustrate, the coefficients that define the linear combination do
+not find much use in X-site elements. however, the B site elements
+contribute much more to the band gap on average, which is consistent
+with our physical understanding.
+
+Curiously, A site elements also prove to be relevant.
+
+Likewise, with respect to the generality measure conducted earlier, it
+seems the presence of individual elements is far more predictive of
+the total band gap than mix status. This would explain why X-site and
+A-site alloys are sufficient to predict the band gaps of B-site alloys,
+despite those groups containing no B-site alloys themselves, they do
+contain a representative sample of B-site elements.
+*** 
 ** Screening
 :PROPERTIES:
 :CUSTOM_ID: screeding
 :CLASS: unnumbered
 :END:
 A set of high throughput screening criteria has been previously
-developed[[cite:&mannodi-kanakkithodi-2022-data-driven]]. We apply the
+developed[[cite:mannodi-kanakkithodi-2022-data-driven]]. We apply the
 band gap criterion to the predictions made the by these enhanced models.
 
 *** TODO Compare
@@ -598,8 +611,7 @@ band gap scores vs training set size
 Notice that the error metrics are negated so that, consistently with
 the R^2 and ev scores, the greater the number, the better the model
 performs.
-
-
+** Generality Tests
 ** HPO Summary Tables
 *** RFR
 *** GPR
