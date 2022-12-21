@@ -8,7 +8,7 @@
 #+select_tags: export
 #+exclude_tags: noexport
 #+creator: Emacs 29.0.50 (Org mode 9.5.2)
-#+cite_export: natbib kluwer
+#+cite_export: natbib
 #+latex_class: revtex
 #+latex_class_options: [aip, jmp, amsmath, amssymb]
 #+latex_header:
@@ -20,6 +20,8 @@
 #+date: \today
 #+SETUPFILE: ~/org/revtex_header.org
 #+INCLUDE: ./frontmatter.org
+#+PROPERTY: header-args:jupyter-python :session mrg :kernel mrg :pandoc org :async yes
+#+PROPERTY: header-args :results scalar drawer :eval never-export :exports results
 #+begin_abstract
 We report on the details of creating models of halide perovskite properties based on composition and derived
 descriptors. The primary objective of these models is to eventually recommend perovskite alloy compositions
@@ -55,119 +57,338 @@ adding descriptors based on phase and structural information.
 We finally compare the band gap models based on this basic 55 dimensional descriptor and models based on an engineered
 domain we produced to improve model efficiency, performance, and interpretability.
 #+end_abstract
-* INTRODUCTION
+* COMMENT dependencies
+#+INCLUDE: /home/panos/Documents/manuscripts/DFT+ML+feature_engineering/dev_dependencies.org
+#+begin_src jupyter-python
+  import re
+  from plotly.subplots import make_subplots
+
+  import matplotlib.pyplot as plt
+  plt.rc("figure", facecolor='w')
+  from spyglass import parityplot, biplot
+  import plotly.express as px
+  import plotly.io as pio
+  import plotly.graph_objects as go
+
+  pub_template = go.layout.Template()
+  pub_template.data = pio.templates['simple_white'].data
+  pub_template.layout = pio.templates['simple_white'].layout
+  pub_template.layout.font = dict(family='arial narrow', size=15)
+
+  pio.templates.default = pub_template
+
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* COMMENT load data
+#+INCLUDE: /home/panos/Documents/manuscripts/DFT+ML+feature_engineering/load_full_domain.org
+** for illustrating the domain
+#+begin_src jupyter-python
+  target=['bg_eV']
+  Y = my.dropna(subset=target)
+  # use mm, or mc/mp + categorical features
+  X = mm.reindex(index=Y.index)
+  # X = mm[[mc.columns.to_list + ["LoT"]]]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+** create preprocessing pipeline
+#+begin_src jupyter-python
+  # composition vectors for preprocessing
+  # comp_features = X.select_dtypes(np.number).columns[
+  #     X.select_dtypes(np.number).columns.str.match(r"\('[ABX]', '[^E]\w{,2}'\)")
+  # ]
+  # composition vectors for preprocessing
+  comp_features = mc.columns
+
+  # site-avg properties for preprocessing
+  prop_features = mp.columns
+
+  # categorical properties for preprocessing
+  cat_features = mm.select_dtypes('object').columns
+
+  # define preprocessing
+  fillna = SimpleImputer(strategy="constant", fill_value=0.0)
+  mkratio = Normalizer(norm='l1')
+  mknormal = StandardScaler()
+  mkbound = MinMaxScaler(feature_range=(0,1), clip=False) #not statistical, should work for anything
+
+  comp_transformer = mkpipe(fillna, mkratio, mkbound)
+  prop_transformer = mkpipe(fillna, mknormal, mkbound)
+  cat_transformer = ohe(handle_unknown="ignore")
+
+  preprocessor = colt(
+      transformers=[
+          ("comp", comp_transformer, comp_features),
+          ("prop", prop_transformer, prop_features),
+          ("cat", cat_transformer, cat_features),
+      ]
+  )
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+** fit data and create visualization df
+#+begin_src jupyter-python
+  preprocessor.fit(X)
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+  ColumnTransformer(transformers=[('comp',
+                                   Pipeline(steps=[('simpleimputer',
+                                                    SimpleImputer(fill_value=0.0,
+                                                                  strategy='constant')),
+                                                   ('normalizer',
+                                                    Normalizer(norm='l1')),
+                                                   ('minmaxscaler',
+                                                    MinMaxScaler())]),
+                                   Index(['('A', 'Cs')', '('A', 'FA')', '('A', 'K')', '('A', 'MA')',
+         '('A', 'Rb')', '('B', 'Ba')', '('B', 'Ca')', '('B', 'Ge')',
+         '('B', 'Pb')', '('B', 'Sn')', '('B', 'Sr')', '('X',...
+         '('X', 'ion_rad_Å')', '('X', 'Boiling_Point_K')',
+         '('X', 'Melting_Point_K')', '('X', 'dens_g/cc')', '('X', 'at_wt_u')',
+         '('X', 'El_aff_kJ/mol')', '('X', 'IonE_kJ/mol')',
+         '('X', 'Heat_of_fusion_kJ/mol')', '('X', 'Heat_of_vap_kJ/mol')',
+         '('X', 'En')', '('X', 'at_num')', '('X', 'period')'],
+        dtype='object')),
+                                  ('cat', OneHotEncoder(handle_unknown='ignore'),
+                                   Index(['LoT'], dtype='object'))])
+#+end_example
+:end:
+
+#+begin_src jupyter-python
+  XX = pd.DataFrame(preprocessor.transform(X),
+                   columns=preprocessor.get_feature_names_out(),
+                   index=X.index)
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+** targets
+no target transformations yet
+#+begin_src jupyter-python
+  YY = Y
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+** subset as necessary
+#+begin_src jupyter-python
+  YY = YY#[Y.LoT=='PBE']
+  # use mm, or mc/mp + categorical features
+  XX = XX#[y.LoT=='PBE']
+  # X = mm[[mc.columns.to_list + ["LoT"]]]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* DONE Introduction
 :PROPERTIES:
-:CUSTOM_ID: introduction
 :CLASS: unnumbered
 :END:
-** DONE Multi-Fidelity Modeling
 :STATUSLOG:
+- State "DONE"       from "TODO"       [2022-12-21 Wed 16:56]
+:END:
+** DONE Multi-Fidelity Learning 
+:STATUSLOG:
+- State "DONE"       from "TODO"       [2022-12-21 Wed 11:26]
 - State "DONE"       from "TODO"       [2022-09-13 Tue 12:51]
 :END:
-The problem of modeling low availability, high fidelity targets is
-approached with a diverse selection of multi-fidelity learning
-techniques in the literature. These techniques 
+The state of the art in materials modeling favors [[Acrfull:gnn][Graph Neural Network
+(GNN)]][[cite:&chen-2019-graph-networ;&choudhary-2021-atomis-line;&xie-2018-cryst-graph]]
+architectures. These [[gls:dl][deep learning]] models have sufficient flexibility
+to capture the continuous variability in relative positions of
+crystals and molecules. They are extremely effective models, but they
+are difficult to use with physical materials. Accurately
+characterizing structures at a level of atomic granularity cannot be
+achieved even with state of the art 3D Electron Tomography
+techniques[[cite:&ercius-2015-elect-tomog]]. Yet, characterization of
+chemical composition is a well established practice i.e using X-ray
+spectroscopy.
 
-- Semi-supervised learning approaches
+Graph convolutional neural networks can power more accurate
+structure-target predictions at multiple
+fidelities[[cite:&chen-2020-multi-fidel]] by performing [[Gls:mtl][Multi-Task
+Learning]] (MTL). For instance, this multiple-fidelity machine learning
+technique can infer the relationships between more plentiful [[ACRshort:pbe][PBE]] [[ACRshort:gga][GGA]]
+data and rarer but more accurate [[ACRshort:hse][HSE06]] data based on a shared set of
+predicting [[gls:ft][features]]. This relationship, if sufficiently general, can
+be used to reliably extrapolate from known points on the [[ACRshort:pbe][PBE]] co-domain
+to the unknown [[ACRshort:hse][HSE]] co-domain. Of course, while this is implemented
+successfully in neural networks, the concept holds for any model
+architecture that can simultaneously regress multidimensional targets
+which do not need to constitute one rectangular data structure.
 
-  need details
+Additionally, there are alternative [[gls:mtl][multi-task learning]] approaches
+that can be implemented on the domain side. This circumvents the
+requirement for flexibility in encoding the co-domain, making it
+possible to use a single target regression methods to learn rules for
+multiple outcomes that vary depending on a categorical variable
+representing the fidelity. In general, the problem of accurately
+modeling low availability, high fidelity targets is approached using
+MTL to learn regressions on datasets compiled either along X or Y from
+measurements taken at multiple [[gls:lot][levels of theory]].
 
-- sequential approaches
+Semi-supervised
+learning[[cite:&chapelle-2006-semi-super-learn;&lee-2013-pseud-label]] is
+a competing set of methods achieving similar outcomes.
 
-  sequential approaches involve training a model architecture on
-  larger quantities of low fidelity data, gaining insight into rough
-  patterns which are then conducive to improving the quality of
-  predictions
-
-We will employ this sequential approach where the largest, lowest
+We will employ the domain-side approach where the largest, lowest
 fidelity component of our dataset consists of [[acrfull:dft][density functional
 theory (DFT)]] band gap predictions made at the [[acrfull:gga][generalized gradient
 approximation (GGA)]] [[acrfull:pbe][Perdew-Burke-Ernzerhof (PBE)]] [[gls:lot][level of theory]]. On
 the other end, the smallest and highest fidelity subset of the sample
-consists of experimental measurements of physical devices.
+consists of experimental measurements of physical devices collected
+from the literature.
 
-The dataset utilized for the development of these models is
-accumulated from multiple experiments conducted at various
-fidelities. Therefore, naturally, the statistics obtained from each
-fidelity are unequal. This is the primary challenge we will address
-with a multi-fidelity model development approach.
+** DONE Dataset Overview
+:STATUSLOG:
+- State "DONE"       from "TODO"       [2022-12-21 Wed 12:16]
+:END:
+*** DONE Perovskite Band Gaps
+:STATUSLOG:
+- State "DONE"       from "TODO"       [2022-12-21 Wed 12:16]
+:END:
+# need to introduce the significance of predicting band gaps more
+# effectively
+we aim to accurately predict performance-relevant [[Acrfull:hap][Halide perovskite
+(HaP)]] band gaps which are strongly predictive of photovoltaic
+performance[[cite:&mannodi-kanakkithodi-2019-compr-comput]].
 
-Beyond this, we are careful to maintain the diversity of categories
-member to each fidelity subset. We expect this will help to ensure the
-models learn relationships between fidelities, not differences in
-alloy scheme or constituency distributions within each fidelity.
+Furthermore, using MTL modeling we aim to predict the experimentally
+measured band gaps of compounds that have only been simulated to
+date. Our fidelity hierarchy climbs from [[ACRshort:dft][DFT]] simulations performed
+using the basic [[acrshort:pbe][PBE]] [[acrshort:gga][GGA]] functional, to results obtained from physical
+experiments aggregated in
+literature[[cite:&almora-2020-devic-perfor;&kim-2014-cdses-nanow;&swanson-2017-co-sublim]]
+see table ref:tbl:LoTs.
 
-** TODO Dataset Overview
-# not every scrap of data collected in the experiments was included in the sample
-# standard cleaning and deduping operations need only be mentioned
-*** DONE Sample Representation Summary
+While we acknowledge the advantages of [[acrshort:gnn][GNNs]], we aim to express band
+gap as functions primarily of the perovskite composition. It is known
+this effort is suboptimal especially as the octahedral arrangement of
+perovskites is most relevant to their electronic structure,
+Nevertheless, a strong understanding of the influence of chemical
+composition on performance will continue to be a priority as it is
+expected to aid in [[Future Work][inverse design]] and in [[Feature Engineering][Feature Engineering]].
+
+#+begin_src jupyter-python :post wraptbl(*this*, c="label:tbl:LoTs Density Functionals vs Sample Counts")
+  my.LoT.value_counts().to_frame()
+#+end_src
+
+#+RESULTS:
+:results:
+ 
+#+CAPTION: label:tbl:LoTs Density Functionals vs Sample Counts 
+|              |  LoT |
+|--------------+------|
+| PBErel       |  517 |
+| HSErel(SOC)  |  299 |
+| HSErel       |  297 |
+| HSE-PBE(SOC) |  244 |
+| EXP          |   44 |
+|--------------+------|
+| Total        | 1401 |
+#+TBLFM: $2=vsum(@I..@II)
+:end:
+
+A detailed analysis of this combined hybrid organic-inorganic and
+purely inorganic [[acrshort:hap][HaP]] [[ACRshort:dft][DFT]] dataset is covered in a prior article by
+[[citet:&yang-2022-high-throug]] and in section [[DFT Details]].
+
+Naturally, the statistics obtained from each fidelity vary (fig
+ref:fig:bg_dist). This is the primary challenge we will address in
+section [[Methods]].
+
+#+begin_src jupyter-python :post wrap(*this*, c="label:fig:bg_dist Variability in band gap per level of theory")
+  p = px.histogram(Y, x="bg_eV", color="LoT", barmode="overlay")
+  p.update_xaxes(title="Band Gap [eV]")
+  p.show('svg')
+#+end_src
+
+#+RESULTS:
+:results:
+ 
+#+attr_latex: :width 300pt
+#+CAPTION: label:fig:bg_dist Variability in band gap per level of theory
+#+attr_org: :width 700
+[[file:./.ob-jupyter/2ff00cfe78bc5c9b2f1f7e489f0bb2c6a0643052.svg]]
+:end:
+
+*** DONE Sampling
 :STATUSLOG:
 - State "DONE"       from              [2022-09-13 Tue 12:51]
 :END:
-For each fidelity, each experiment is performed on some number of
-members to a fixed subset of the total 37785 compositions that can be
-made in a 2x2x2 perovskite supercell when allowing at most single-site
-alloying with our 14 constituents (table ref:tbl:site_tbl).
+The simulations for each [[gls:lot][level of theory]] are performed on some number
+of members to a fixed subset of the total 37785 compositions that can
+be combinatorially generated in a 2x2x2 perovskite supercell when
+allowing /at most/ single-site alloying with our 14 constituent
+candidates for 3 sites (table ref:tbl:site_tbl).
 
 #+caption: label:tbl:site_tbl ABX_3 Chemical Domain
-| A-site | B-site | X-site |
-|--------+--------+--------|
-| MA     | Pb     | I      |
-| FA     | Sn     | Br     |
-| Cs     | Ge     | Cl     |
-| Rb     | Ba     |        |
-| K      | Sr     |        |
-|        | Ca     |        |
+| /      | <  |    |    |    |    |    |
+| A-site | [[ACRshort:ma][MA]] | [[ACRshort:fa][FA]] | Cs | Rb | K  |    |
+| B-site | Pb | Sn | Ge | Ba | Sr | Ca |
+| X-site | I  | Br | Cl |    |    |    |
 
 Within this sample space, we try to maintain a balance in the share of
 samples that represent each one of the "[[gls:cmix][cardinal mixing]]"
 categories. Additionally, within each mix we try to maintain a
 reasonable balance of purely inorganic samples versus hybrid
 organic-inorganic samples. See figure ref:fig:lot_mix_org. See section
-[[METHODS]] for details on how these categories were utilized in model
+[[Methods]] for details on how these categories were utilized in model
 development.
 
-#+ATTR_LATEX: :float multicolumn
-#+CAPTION: \label{fig:lot_mix_org}
-#+CAPTION: Share by count of total data apportioned from each experimental subcategory
-[[file:/home/panos/MannodiGroup/publications/Commun-Mat_DFT+ML+GA/Dataset_Overview/lot-mix-org_sunburst.png]]
-
-| LoT | count |
-|-----+-------|
-| EXP |    44 |
-| HSC |   299 |
-| HSE |   297 |
-| PBE |   490 |
-
-| mix  | count |
-|------+-------|
-| A    |   202 |
-| B    |   437 |
-| X    |   209 |
-| pure |   282 |
-
-#+ATTR_LATEX: :float multicolumn
-#+CAPTION: \label{fig:comp}
-#+CAPTION: Tally of constituents present in total dataset as aggregate over all alloy groups
-[[file:/home/panos/MannodiGroup/publications/Commun-Mat_DFT+ML+GA/Dataset_Overview/lot-mix-comp_sunburst.png]]
-
 The design of this dataset provides an opportunity to assess the
-ability of our models to extrapolate with respect to alloying
-scheme. It also provides an opportunity to investigate the statistical
-impact of constituent compounds on perovskite property prediction. See
-section [[RESULTS AND DISCUSSION]].
-*** TODO overview of constituent correlations with bandgap
-** TODO Developing Extrapolative Models
-#+CAPTION:\label{fig:outline} 
-#+attr_latex: scale=0.75
+ability of our models to extrapolate with respect to alloying scheme
+as well as [[gls:lot][level of theory]]. It also provides an opportunity to
+investigate the statistical impact of constituent compounds on
+perovskite property prediction. See section [[Results and Discussion]].
 
-need to introduce the significance of predicting band gaps more
-effectively
+#+begin_src jupyter-python :post wrap(*this*, c="\label{fig:lot_mix_org}Share by count of total data apportioned from each experimental subcategory")
+  p = px.sunburst(my, path=['LoT','mix','org'])
+  p.update_layout(
+      margin=dict(l=0, r=0, t=0, b=0),
+  )
+  llist = p.data[0].labels
+  vlist = [v if not re.search(r'[0-9]', l) else "" for l,v in zip(p.data[0].labels, p.data[0].values)]
+  p.data[0].labels=np.array(list(zip(llist,vlist)))
 
-reported experimental band gap values[[cite:&kim-2014-cdses-nanow;&swanson-2017-co-sublim]]
+  p.show(renderer='svg')
+#+end_src
 
-** TODO Model Optimization
-The rigorous hyper-Parameter Optimization (HPO) of any feature
+#+RESULTS:
+:results:
+ 
+#+attr_latex: :width 300pt
+#+CAPTION: label{fig:lot_mix_org}Share by count of total data apportioned from each experimental subcategory
+#+attr_org: :width 700
+[[file:./.ob-jupyter/714175a3d13e3c523962f378572a20cc21500c4d.svg]]
+:end:
+
+** DONE Model Optimization
+:STATUSLOG:
+- State "DONE"       from "TODO"       [2022-12-21 Wed 16:56]
+:END:
+# not every scrap of data collected in the experiments was included in the sample
+# standard cleaning and deduping operations need only be mentioned
+
+The rigorous [[gls:hp][hyper-parameter]] Optimization (HPO) of any feature
 engineering and modeling pipeline is a problem discussed extensively
 in the literature. HPO approaches can be broadly separated into
 exhaustive and efficient optimization strategies
