@@ -4,51 +4,58 @@
 #+PROPERTY: header-args :session mrg :kernel mrg :async yes :pandoc org :results raw drawer
 * Load Data
 #+begin_src jupyter-python
-  mannodi_pbe_q = """SELECT *
-                     FROM mannodi_pbe"""
-  mannodi_hse_q = """SELECT *
-                     FROM mannodi_hse"""
-  mannodi_hsc_q = """SELECT *
-                     FROM mannodi_hsesoc"""
-  almora_q = """SELECT *
-                FROM almora"""
-  ref_q = """SELECT *
-             FROM mannodi_ref_elprop"""
+  pbeq = "SELECT * FROM mannodi_pbe2"
+  hseq = "SELECT * FROM mannodi_hse2"
+  hscq = "SELECT * FROM mannodi_hsc2"
+  phcq = "SELECT * FROM mannodi_phc"
+  almora_q = "SELECT * FROM almora"
+  ref_q = "SELECT * FROM mannodi_ref_elprop"
   with sqlite3.connect(os.path.expanduser("~/src/cmcl/cmcl/db/perovskites.db")) as conn:
-      mannodi_pbe = pd.read_sql(mannodi_pbe_q, conn, index_col="index")
-      mannodi_hse = pd.read_sql(mannodi_hse_q, conn, index_col="index")
-      mannodi_hsc = pd.read_sql(mannodi_hsc_q, conn, index_col="index")
+      pbe = pd.read_sql(pbeq, conn, index_col="index")
+      hse = pd.read_sql(hseq, conn, index_col="index")
+      hsc = pd.read_sql(hscq, conn, index_col="index")
+      phc = pd.read_sql(phcq, conn, index_col="index")
       almora = pd.read_sql(almora_q, conn, index_col='index')
-      lookup = pd.read_sql(ref_q, conn, index_col='index')
+      lookup = pd.read_sql(ref_q, conn, index_col='index').set_index("Formula")
 #+end_src
 
-** lookup indexing
-#+begin_src jupyter-python
-  lookup = lookup.set_index("Formula")
-#+end_src
+#+RESULTS:
+:results:
+:end:
 
 * clean data
 ** manipulations per column
 #+begin_src jupyter-python
   almora_num = almora.columns[[1,2,3,4,5]].to_list()
-  hsc_num = mannodi_hsc.columns[[2,3]].to_list()
-  hse_num = mannodi_hse.columns[[2,4,5,6,7]].to_list()
-  pbe_num = mannodi_pbe.columns[[2,4,5,6,7,8,9,10,11]].to_list()
+  phc_num = phc.columns[[2,3,4,5]].to_list()
+  hsc_num = hsc.columns[[2,3]].to_list()
+  hse_num = hse.columns[[2,4,5,6,7]].to_list()
+  pbe_num = pbe.columns[[2,4,5,6,7,8,9,10,11]].to_list()
 
   almora_obj = [col for col in almora.columns if col not in almora_num]
-  hsc_obj = [col for col in mannodi_hsc.columns if col not in hsc_num]
-  hse_obj = [col for col in mannodi_hse.columns if col not in hse_num]
-  pbe_obj = [col for col in mannodi_pbe.columns if col not in pbe_num]
+  phc_obj = [col for col in phc.columns if col not in phc_num]
+  hsc_obj = [col for col in hsc.columns if col not in hsc_num]
+  hse_obj = [col for col in hse.columns if col not in hse_num]
+  pbe_obj = [col for col in pbe.columns if col not in pbe_num]
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
 
 ** control dtypes
 #+begin_src jupyter-python
   #used to drop nans in desired target
-  mannodi_pbe[pbe_num] = mannodi_pbe[pbe_num].applymap(pd.to_numeric, errors='coerce')
-  mannodi_hse[hse_num] = mannodi_hse[hse_num].applymap(pd.to_numeric, errors='coerce')
+  pbe[pbe_num] = pbe[pbe_num].applymap(pd.to_numeric, errors='coerce')
+  hse[hse_num] = hse[hse_num].applymap(pd.to_numeric, errors='coerce')
   almora[almora_num] = almora[almora_num].applymap(pd.to_numeric, errors='coerce')
-  mannodi_hsc[hsc_num] = mannodi_hsc[hsc_num].applymap(pd.to_numeric, errors='coerce')    
+  hsc[hsc_num] = hsc[hsc_num].applymap(pd.to_numeric, errors='coerce')
+  phc[phc_num] = phc[phc_num].applymap(pd.to_numeric, errors='coerce')  
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
 
 * for fidelity comparisons
 ** define collection operation dictionaries
@@ -58,54 +65,84 @@
       return ops
 
   almora_ops = make_ops(almora_obj, almora_num)
+  phc_ops = make_ops(phc_obj, phc_num)
   hsc_ops = make_ops(hsc_obj, hsc_num)
   hse_ops = make_ops(hse_obj, hse_num)
   pbe_ops = make_ops(pbe_obj, pbe_num)
 #+end_src
 
+#+RESULTS:
+:results:
+:end:
+
 ** trim and aggregate possible targets
 repeated record measures are aggregated
 #+begin_src jupyter-python
   almora = almora.groupby('Formula').agg(almora_ops).reset_index(drop=True)
-  mannodi_pbe = mannodi_pbe.groupby('Formula').agg(pbe_ops).reset_index(drop=True)
-  mannodi_hse = mannodi_hse.groupby('Formula').agg(hse_ops).reset_index(drop=True)
-  mannodi_hsc = mannodi_hsc.groupby('Formula').agg(hsc_ops).reset_index(drop=True)
+  pbe = pbe.groupby('Formula').agg(pbe_ops).reset_index(drop=True)
+  hse = hse.groupby('Formula').agg(hse_ops).reset_index(drop=True)
+  hsc = hsc.groupby('Formula').agg(hsc_ops).reset_index(drop=True)
+  phc = phc.groupby('Formula').agg(phc_ops).reset_index(drop=True)
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
 
 #+begin_src jupyter-python
   almora.dropna(subset=almora_num, how='all', inplace=True)
-  mannodi_pbe.dropna(subset=pbe_num, how='all', inplace=True)
-  mannodi_hse.dropna(subset=hse_num, how='all', inplace=True)
-  mannodi_hsc.dropna(subset=hsc_num, how='all', inplace=True)
+  pbe.dropna(subset=pbe_num, how='all', inplace=True)
+  hse.dropna(subset=hse_num, how='all', inplace=True)
+  hsc.dropna(subset=hsc_num, how='all', inplace=True)
+  phc.dropna(subset=phc_num, how='all', inplace=True)
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
 
 * Clean Data and label
 going forward we just assume that almora consists primarily of cubic phase crystals
 ** subset based on deviation from cubicity
 #+begin_src jupyter-python
   exclude = ["Rb0.375Cs0.625GeBr3", "RbGeBr1.125Cl1.875", "K0.75Cs0.25GeI3", "K8Sn8I9Cl15"]
-  mannodi_pbe = mannodi_pbe[~mannodi_pbe.Formula.isin(exclude)]
-  mannodi_hse = mannodi_hse[~mannodi_hse.Formula.isin(exclude)]
-  mannodi_hsc = mannodi_hsc[~mannodi_hsc.Formula.isin(exclude)]  
+  pbe = pbe[~pbe.Formula.isin(exclude)]
+  hse = hse[~hse.Formula.isin(exclude)]
+  hsc = hsc[~hsc.Formula.isin(exclude)]
+  phc = phc[~phc.Formula.isin(exclude)]
   almora = almora[~almora.Formula.isin(exclude)]
 #+end_src
 
+#+RESULTS:
+:results:
+:end:
+
 ** create LoT axis
 #+begin_src jupyter-python
-  mannodi_pbe = mannodi_pbe.assign(LoT='PBE')
-  mannodi_hse = mannodi_hse.assign(LoT='HSE')
-  mannodi_hsc = mannodi_hsc.assign(LoT='HSC')  
+  pbe = pbe.assign(LoT='PBErel')
+  hse = hse.assign(LoT='HSErel')
+  hsc = hsc.assign(LoT='HSErel(SOC)')
+  phc = phc.assign(LoT='HSE-PBE(SOC)')
   almora = almora.assign(LoT='EXP')
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
 
 * Compute Base
 ** Compute Composition Vectors
 #+begin_src jupyter-python
-  pc = mannodi_pbe.ft.comp().iloc[:, :14:]
-  hc = mannodi_hse.ft.comp().iloc[:, :14:]
-  hsc = mannodi_hsc.ft.comp().iloc[:, :14:]
+  pbec = pbe.ft.comp().iloc[:, :14:]
+  hsec = hse.ft.comp().iloc[:, :14:]
+  hscc = hsc.ft.comp().iloc[:, :14:]
+  phcc = phc.ft.comp().iloc[:, :14:]
   ec = almora.ft.comp()
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
 
 ** validate compositions
 #+begin_src jupyter-python
@@ -122,33 +159,54 @@ going forward we just assume that almora consists primarily of cubic phase cryst
         return df[focus], cdf[focus]
 #+end_src
 
+#+RESULTS:
+:results:
+:end:
+
 #+begin_src jupyter-python
-  mannodi_pbe, pc = validate_composition(mannodi_pbe, pc)
-  mannodi_hse, hc = validate_composition(mannodi_hse, hc)
-  mannodi_hsc, hsc = validate_composition(mannodi_hsc, hsc)
-  ec = ec.applymap(pd.to_numeric, errors='coerce')
+  pbe, pbec = validate_composition(pbe, pbec)
+  hse, hsec = validate_composition(hse, hsec)
+  hsc, hscc = validate_composition(hsc, hscc)
+  phc, phcc = validate_composition(phc, phcc)
+  ec = ec.applymap(pd.to_numeric, errors='coerce') #drop symbolics
   almora, ec = validate_composition(almora, ec)
 #+end_src
 
+#+RESULTS:
+:results:
+:end:
+
 ** Compute Site Properties
 #+begin_src jupyter-python
-  pp = join3(mannodi_pbe.Formula.to_frame(), pc, lookup, thru='element', right_on='Formula').reset_index(drop=True)
-  hp = join3(mannodi_hse.Formula.to_frame(), hc, lookup, thru='element', right_on='Formula').reset_index(drop=True)
+  pbep = join3(pbe.Formula.to_frame(), pbec, lookup, thru='element', right_on='Formula').reset_index(drop=True)
+  hsep = join3(hse.Formula.to_frame(), hsec, lookup, thru='element', right_on='Formula').reset_index(drop=True)
   ep = join3(almora.Formula.to_frame(), ec, lookup, thru='element', right_on='Formula').reset_index(drop=True)
-  hsp = join3(mannodi_hsc.Formula.to_frame(), hsc, lookup, thru='element', right_on='Formula').reset_index(drop=True)
+  hscp = join3(hsc.Formula.to_frame(), hscc, lookup, thru='element', right_on='Formula').reset_index(drop=True)
+  phcp = join3(phc.Formula.to_frame(), phcc, lookup, thru='element', right_on='Formula').reset_index(drop=True)
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
 
 * Unify Domain
 Base Domain may be mutated based on feature's Predictive Power by individual pipelines
 ** Basic Domains
 #+begin_src jupyter-python
-  my = pd.concat([mannodi_pbe, mannodi_hse, almora, mannodi_hsc], axis=0).reset_index(drop=True)
+  my = pd.concat([pbe, hse, almora, hsc, phc], axis=0).reset_index(drop=True)
 
-  mc = pd.concat([pc, hc, ec, hsc], axis=0).reset_index(drop=True)
-  mp = pd.concat([pp, hp, ep, hsp], axis=0).reset_index(drop=True)
-  mm = pd.concat([mc, mp, my.LoT], axis=1)
+  mc = pd.concat([pbec, hsec, ec, hscc, phcc], axis=0).reset_index(drop=True)
+  mp = pd.concat([pbep, hsep, ep, hscp, phcp], axis=0).reset_index(drop=True)
+  mm = pd.concat([mc, mp, my.LoT], axis=1) #take phase and Lot information from ytables
+  mc.columns = list(map(str, mc.columns))
+  mp.columns = list(map(str, mp.columns))
   mm.columns = list(map(str, mm.columns))
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
+
 ** unified categorical features
 #+begin_src jupyter-python
   def make_category_labels(target):
@@ -164,12 +222,20 @@ Base Domain may be mutated based on feature's Predictive Power by individual pip
   my = my.assign(mix=mix).assign(org=org)
 #+end_src
 
+#+RESULTS:
+:results:
+:end:
+
 ** filter out BandX
 #+begin_src jupyter-python
   mixfilter = my.mix.isin(['A', 'B', 'X', 'pure'])
   mm = mm[mixfilter]
   my = my[mixfilter]
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
 
 * Separate Domains
 easy to do, but can be set up here if needed
@@ -178,3 +244,7 @@ easy to do, but can be set up here if needed
   #py = my[my.LoT=='pbe']
   #pf = mm[my.LoT=='pbe']
 #+end_src
+
+#+RESULTS:
+:results:
+:end:

@@ -1,12 +1,16 @@
-#+title: Generic Dependencies For All Modeling and Plotting
+#+title: Dependencies For All Modeling and Plotting
 #+AUTHOR: Panayotis Manganaris
 #+EMAIL: pmangana@purdue.edu
 #+PROPERTY: header-args :session mrg :kernel mrg :async yes :pandoc org :results raw drawer
-* COMMENT DEV dependencies
+* My packages
 #+begin_src jupyter-python
   %load_ext autoreload
   %autoreload 2
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
   
 #+begin_src jupyter-python
   import sys, os
@@ -14,6 +18,10 @@
   sys.path.append(os.path.expanduser("~/src/yogi"))
   sys.path.append(os.path.expanduser("~/src/spyglass"))
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
 
 #+begin_src jupyter-python
   # featurization
@@ -26,25 +34,46 @@
   from yogi.model_selection import pandas_validation_curve as pvc
   from yogi.metrics import PandasScoreAdaptor as PSA
   from yogi.metrics import batch_score, test_generality
-  # visualization convenience
-  from spyglass import parityplot, biplot
 #+end_src
-  
+
+#+RESULTS:
+:results:
+:end:
+
+* patch sklearn
 #+begin_src jupyter-python
   from sklearnex import patch_sklearn
   #patch_sklearn()
 #+end_src
 
+#+RESULTS:
+:results:
+:end:
+
+* raw data utilities
 #+begin_src jupyter-python
-  # data tools
   import sqlite3
   import pandas as pd
   import numpy as np
-  # feature engineering
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* feature engineering
+#+begin_src jupyter-python
   from sklearn.impute import SimpleImputer
   from sklearn.preprocessing import OrdinalEncoder, Normalizer, StandardScaler
   from sklearn.preprocessing import FunctionTransformer, MinMaxScaler
-  ## pipeline workflow
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* pipeline workflow 
+#+begin_src jupyter-python
   from sklearn.pipeline import make_pipeline as mkpipe
   from sklearn.compose import ColumnTransformer as colt
   from sklearn.preprocessing import OneHotEncoder as ohe
@@ -52,13 +81,51 @@
   from sklearn.model_selection import learning_curve, validation_curve
   from sklearn.model_selection import StratifiedShuffleSplit
   from sklearn.model_selection import GridSearchCV as gsCV
-  # model eval
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* model eval
+#+begin_src jupyter-python
   from sklearn.metrics import make_scorer, mean_squared_error, r2_score, explained_variance_score, max_error
   import joblib
-  from sklearn.base import clone
-  #visualization
+  import shap
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* visualization
+#+begin_src jupyter-python
   from sklearn import set_config
   set_config(display="text")
   from sklearn.utils import estimator_html_repr
-  import plotly.express as px
 #+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* plotting
+#+begin_src jupyter-python
+  import matplotlib.pyplot as plt
+  plt.rc("figure", facecolor='w')
+  from spyglass import parityplot, biplot
+  import plotly.express as px
+  import plotly.io as pio
+  import plotly.graph_objects as go
+
+  pub_template = go.layout.Template()
+  pub_template.data = pio.templates['simple_white'].data
+  pub_template.layout = pio.templates['simple_white'].layout
+  pub_template.layout.font = dict(family='arial narrow', size=15)
+
+  pio.templates.default = pub_template
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
