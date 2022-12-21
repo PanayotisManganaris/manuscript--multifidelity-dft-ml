@@ -3,19 +3,40 @@
 #+email: panos.manganaris@gmail.com
 #+PROPERTY: header-args :session mrg :kernel mrg :async yes :pandoc org :results raw drawer
 * dependencies
-#+INCLUDE: /home/panos/MannodiGroup/publications/Commun-Mat_DFT+ML+GA/dev_dependencies.org
+#+INCLUDE: /home/panos/Documents/manuscripts/DFT+ML+feature_engineering/dev_dependencies.org
+#+begin_src jupyter-python
+  sys.path.append(os.path.expanduser("~/src/umap"))
+  import umap
+  ## feature engineering exploration
+  from sklearn.impute import SimpleImputer
+  from sklearn.preprocessing import OrdinalEncoder, Normalizer, StandardScaler
+  #transformers
+  from sklearn.decomposition import PCA, TruncatedSVD, KernelPCA
+  from sklearn.manifold import TSNE
+
+  from cmcl import make_possible_compositions
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
 * load data
-#+INCLUDE: /home/panos/MannodiGroup/publications/Commun-Mat_DFT+ML+GA/load_full_domain.org
+#+INCLUDE: /home/panos/Documents/manuscripts/DFT+ML+feature_engineering/load_full_domain.org
 * category representation
-#+begin_src jupyter-python :file ./lot-mix-org_sunburst.png
+remember to specify layout units
+#+begin_src jupyter-python :file ./lot-mix-org_sunburst.svg
   p = px.sunburst(my, path=['LoT','mix','org'])
-  p.show(renderer='png')
+  p.update_layout(
+      margin=dict(l=0, r=0, t=0, b=0),
+  )
+  p.show(renderer='svg')
 #+end_src
 
 #+RESULTS:
 :results:
 #+attr_org: :width 700
-[[file:./lot-mix-org_sunburst.png]]
+[[file:./lot-mix-org_sunburst.svg]]
 :end:
 
 #+begin_src jupyter-python
@@ -27,22 +48,21 @@
 :end:
 
 * constituent shares
-#+begin_src jupyter-python :file ./lot-mix-comp_sunburst.png
+#+begin_src jupyter-python :file ./lot-mix-comp_sunburst.svg
   p = px.sunburst(mc.join(my[['mix','LoT']])
                     .groupby(['mix','LoT'])
                     .count().reset_index().melt(id_vars=['mix','LoT']),
                   path=['LoT','mix','variable'], values='value')
-  p.show(renderer='png')
+  p.update_layout(
+      margin=dict(l=0, r=0, t=0, b=0),
+  )
+  p.show(renderer='svg')
 #+end_src
 
 #+RESULTS:
 :results:
-: /tmp/ipykernel_147365/525600925.py:1: FutureWarning:
-: 
-: merging between different levels is deprecated and will be removed in a future version. (2 levels on the left, 1 on the right)
-: 
 #+attr_org: :width 700
-[[file:./lot-mix-comp_sunburst.png]]
+[[file:./lot-mix-comp_sunburst.svg]]
 :end:
 
 #+begin_src jupyter-python
@@ -52,3 +72,5 @@
 #+RESULTS:
 :results:
 :end:
+
+* tsne plots for domain sampling
