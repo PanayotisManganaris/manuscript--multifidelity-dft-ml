@@ -776,30 +776,46 @@ architectures to fit on.
 #+RESULTS:
 :results:
  
-#+attr_latex: :width 300pt :float multicol
+#+attr_latex: :width 450pt :float multicol :options inkscapeformat=png, inkscapedpi=300
 #+CAPTION: label:fig:pairplots Multi-fidelity model predictions vs Experimental values
 [[file:./.ob-jupyter/e8496f3d4b7310af1c8a8f0448250398e72aed35.svg]]
 :end:
 
-** TODO Domain analysis
-[[Acrfull:shap][Shapley Additive Explaination (SHAP)]]
-scores[[cite:&lundberg-2017-unified-approac]] are computed
- 
-*** TODO SHAP analysis
-*** Random Forest Band Gap SHAP Values
-:PROPERTIES:
-:BEAMER_env: block
+** DONE SHAP Analysis of Domain
+:STATUSLOG:
+- State "DONE"       from "TODO"       [2022-12-21 Wed 22:20]
 :END:
-#+attr_latex: :width 0.25\paperwidth
+#+CAPTION: label:fig:rfrSHAP Random Forest Regression Band Gap SHAP Values
+#+attr_latex: :width 450pt :placement [H]
 [[file:/home/panos/Documents/manuscripts/DFT+ML+feature_engineering/RFR/.ob-jupyter/704d3204752bc52a936aeb9d96e45380512c8c3d.png]]
-*** Gaussian Process Band Gap SHAP Values                         :B_block:
-:PROPERTIES:
-:BEAMER_env: block
-:END:
-#+attr_latex: :width 0.25\paperwidth
+
+[[acrshort:shap][SHAP]] scores are computed automatically for every dimension of every
+sample in the domain. The sum of [[acrshort:shap][SHAP]] scores computed for each
+predictor variable of a sample is the model's prediction for that
+sample[[cite:&lundberg-2017-unified-approac]].
+
+Figures ref:fig:rfrSHAP and ref:fig:gprSHAP show the aggregated score
+results. Within each figure, [[gls:ft][features]] are ranked by overall value on
+the y-axis. The x-axis shows the [[acrshort:shap][SHAP]] score for each point. The points
+are shaped in a violin plot to show the distribution of effects the
+presence of the given feature can have. Finally, on the z-axis,
+feature value gives a sense of how often the feature is a relatively
+minor contributor to a prediction.
+
+For instance, in figure ref:fig:rfrSHAP, the B-site Electronegativity
+is fairly often a strongly positive contributor to the [[acrshort:rfr][RFR]]
+prediction. However, almost always in this case it is out-contributed
+by other [[gls:ft][features]] -- it does not mostly determine the result but it is
+still valuable. On the contrary, when it is a strongly negative
+contributor it effectively determines the result, the model uses small
+positive contributions from other features to claw back up to a
+positive valued band gap.
+
+#+CAPTION: label:fig:gprSHAP Gaussian Process Regression Band Gap SHAP Values
+#+attr_latex: :width 450pt :placement [H]
 [[file:/home/panos/Documents/manuscripts/DFT+ML+feature_engineering/GPR/.ob-jupyter/df8f4cdfbd4884fe978d0b0dc85e13e95137248c.png]]
 
-*** TODO Comparing Feature Usefulness to Raw Correlations
+** TODO Comparing Feature Usefulness to Raw Correlations
 #+begin_src jupyter-python
   sub = pearson.iloc[[56, 59], 0:55]
   ytitles = ["Band Gap [eV]", "Decomposition Energy [eV]"]
