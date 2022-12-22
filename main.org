@@ -1,6 +1,6 @@
 #+options: ':nil *:t -:t ::t <:t H:3 \n:nil ^:t arch:headline author:t broken-links:nil c:nil creator:nil
-#+options: d:(not "LOGBOOK") date:t e:t email:nil f:t inline:t num:nil p:nil pri:nil prop:nil stat:t tags:t
-#+options: tasks:t tex:t timestamp:t title:nil toc:nil todo:t |:t
+#+options: d:(not "STATUSLOG") date:t e:t email:nil f:t inline:t num:nil p:nil pri:nil prop:nil stat:t tags:t
+#+options: tasks:("TODO" "DONE" "NEXT") tex:t timestamp:t title:nil toc:nil todo:nil |:t
 # #+TITLE: Combining High-Throughput Computations, Surrogate Models, and
 # #+TITLE: Genetic Algorithms for Discovering Novel Halide Perovskites
 # #+AUTHOR: Panayotis Manganaris
@@ -8,10 +8,12 @@
 #+select_tags: export
 #+exclude_tags: noexport
 #+creator: Emacs 29.0.50 (Org mode 9.5.2)
-#+cite_export: natbib
+#+cite_export:
 #+latex_class: revtex
 #+latex_class_options: [aip, jmp, amsmath, amssymb]
-#+latex_header:
+#+latex_header:\usepackage{listings}
+#+latex_header:\usepackage{glossaries}
+#+latex_header:\usepackage[automake]{glossaries-extra}
 #+latex_header_extra:
 #+description:
 #+keywords:
@@ -360,7 +362,7 @@ as well as [[gls:lot][level of theory]]. It also provides an opportunity to
 investigate the statistical impact of constituent compounds on
 perovskite property prediction. See section [[Results and Discussion]].
 
-#+begin_src jupyter-python :post wrap(*this*, c="\label{fig:lot_mix_org}Share by count of total data apportioned from each experimental subcategory")
+#+begin_src jupyter-python :post wrap(*this*, c="label:fig:lot_mix_org Share by count of total data apportioned from each experimental subcategory")
   p = px.sunburst(my, path=['LoT','mix','org'])
   p.update_layout(
       margin=dict(l=0, r=0, t=0, b=0),
@@ -375,8 +377,8 @@ perovskite property prediction. See section [[Results and Discussion]].
 #+RESULTS:
 :results:
  
-#+attr_latex: :width 300pt
-#+CAPTION: label{fig:lot_mix_org}Share by count of total data apportioned from each experimental subcategory
+#+attr_latex: :width 300pt :options inkscapeformat=png, inkscapedpi=300
+#+CAPTION: label:fig:lot_mix_org Share by count of total data apportioned from each experimental subcategory
 #+attr_org: :width 700
 [[file:./.ob-jupyter/714175a3d13e3c523962f378572a20cc21500c4d.svg]]
 :end:
@@ -474,18 +476,18 @@ description[[cite:&yang-2022-high-throug]] \(\alpha + \beta + \gamma =
 
 #+CAPTION: An example of the cmcl "ft" feature accessor
 #+begin_src jupyter-python :exports both
-  df = Y.Formula[[25,45]].to_frame().ft.comp()
-  df.index = Y.Formula[[30,45]]
-  df
+  subset = [883,886]
+  df = Y.Formula[subset].to_frame().ft.comp()
+  df.index = Y.Formula[subset]
+  print(df)
 #+end_src
 
 #+RESULTS:
 :results:
-|                                | Cs | Ba  | I     | Cl    | Ca  |
-|--------------------------------+----+-----+-------+-------+-----|
-| Formula                        |    |     |       |       |     |
-| CsCa0.125Ba0.125Ge0.25Sn0.5Br3 | 1  | 1.0 | 0.375 | 2.625 | NaN |
-| CsCaCl_1.875_I_1.125           | 1  | NaN | 1.125 | 1.875 | 1.0 |
+:                      MA   FA  Pb     I    Br
+: Formula                                     
+: MA0.7FA0.3PbI3      0.7  0.3   1  3.00   NaN
+: MAPb(I0.41Br0.59)3  1.0  NaN   1  1.23  1.77
 :end:
 
 This is naturally a spare, relatively high dimensional
@@ -494,8 +496,8 @@ sparser. This descriptor has been shown to be effective for
 interpolating the properties of irregularly mixed large
 supercells[[cite:&mannodi-kanakkithodi-2022-data-driven]], However, a
 spare descriptor is generally bad for extrapolative
-modeling[[cite:&ghiringhelli-2015-big-data]], Dense, Unique, and linearly
-Independent features are much more reliable when extrapolation is the
+modeling[[cite:&ghiringhelli-2015-big-data]], Dense, unique, and linearly
+independent features are much more reliable when extrapolation is the
 aim[[cite:&lux-2020-inter-spars]]. Our attempts to provide a domain with
 these characteristics results in the following raw feature space.
 
@@ -507,8 +509,7 @@ these characteristics results in the following raw feature space.
     measured elemental properties[[cite:&mentel-2014]]
   - see Appendix [[Predictor Variables]] 
 - 5 categorical dimensions one-hot-encoding [[gls:lot][level of theory]].
-  - this provides the domain-side categorical axis for [[glssymbol:mtl][multi-task
-    learning]]
+  - this provides the domain-side categorical axis for [[gls:mtl][multi-task learning]]
   - see table ref:tbl:LoTs
 
 ** DONE Machine Learning Algorithms and Parameter Optimization
@@ -550,7 +551,7 @@ We expect perovskites of a given alloy class and of a given
 hybrid-organic/inorganic status will perform significantly differently
 with respect to a particular application compared to perovskites of a
 another class or status. We attempt to make models that reasonably
-explain this high entropy mixing diversity by utilizing the [[glssymbol:cmix][cardinal
+explain this high entropy mixing diversity by utilizing the [[gls:cmix][cardinal
 mixing]] represented in our sample.
 
 We do this by training each model using two test/train splits. First,
@@ -593,8 +594,7 @@ analytical predictor could be found for band gap. This lead to the use
 of the [[Acrfull:sisso][Sure Independence Screening and Sparsifying Operator
 (SISSO)]][[cite:&ouyang-2018-sisso]].
 
-SIS is a powerful application od the remarkable Artificial
-Intelligence technique, compressed
+SIS[fn:1] is a powerful application of compressed
 sensing[[cite:&ghiringhelli-2017-learn-physic]]. It allows the program to
 effectively find candidates for a linearly independent basis in a
 vector space of immense size. unlike legacy techniques, e.g. LASSO, it
@@ -732,7 +732,6 @@ architectures to fit on.
 - State "DONE"       from              [2022-12-21 Wed 13:21]
 :END:
 # make sure to create subplots first
-
 #+begin_src jupyter-python :post wrap(*this*, w="300pt :float multicol", c="label:fig:pairplots Multi-fidelity model predictions vs Experimental values")
     p0 = make_subplots(rows=1, cols=2)
 
@@ -847,7 +846,7 @@ positive valued band gap.
   p.show(renderer='svg')
 #+end_src
 
-*** TODO engineered features for Enhanced Correlation
+** TODO engineered features for Enhanced Correlation
 The [[Acrfull:sisso][Sure Independence Screening and Sparsifying Operator (SISSO)]]
 [[cite:&ouyang-2018-sisso;&ghiringhelli-2017-learn-physic]] is a specific combination of
 multiple data mining techniques chained together so as to result in a
@@ -1014,7 +1013,6 @@ DE-AC02-06CH11357.
 
 ** Author Contributions
 :PROPERTIES:
-:CUSTOM_ID: author-contributions
 :CLASS: unnumbered
 :END:
 A.M.K. conceived the idea. A.M.K. and J.Y. performed the DFT
@@ -1023,7 +1021,6 @@ discussion and writing of the manuscript.
 
 ** Data Availability
 :PROPERTIES:
-:CUSTOM_ID: data-availability
 :CLASS: unnumbered
 :END:
 DFT data and ML models are available from the corresponding author
@@ -1033,13 +1030,12 @@ online repository
 
 ** Additional Information
 :PROPERTIES:
-:CUSTOM_ID: additional-information
 :CLASS: unnumbered
 :END:
 The authors declare no competing financial or non-financial interests.
 
-Correspondence and requests for materials should be addressed to A.M.K.
-(email:amannodi@purdue.edu).
+Correspondence and requests for materials should be addressed to Arun
+Mannodi Kanakkithodi (email:amannodi@purdue.edu).
 
 * 
 :PROPERTIES:
@@ -1216,7 +1212,7 @@ constituent. These are much denser distributions.
 [[file:./.ob-jupyter/c46d84697e84e3f3a88d840460eb128428d81cc3.svg]]
 :end:
 
-** TODO COMMENT Learning Curves
+** TODO Learning Curves
 Learning curves are computed for each scorer. Notice that the error
 metrics are negated for consistency with the R^2 and ev scores; the
 greater the number, the better the model performs.
@@ -1282,31 +1278,31 @@ comparable across partition size
 
 
 #+name: acronyms
-| label | abbreviation | full form                                                  |
-|-------+--------------+------------------------------------------------------------|
-| hap   | HaP          | halide perovskite                                          |
-| vasp  | VASP         | Vienna Ab initio Simulation Package                        |
-| qmml  | QM/ML        | quantum mechanics machine learning                         |
-| slme  | SLME         | spectroscopic limited maximum efficiency                   |
-| pce   | PCE          | power conversion efficiency                                |
-| dft   | DFT          | density functional theory                                  |
-| gga   | GGA          | generalized gradient approximation                         |
-| pbe   | PBE          | Perdew-Burke-Ernzerhof Functional                          |
-| hse   | HSE06        | Heyd-Scuseria-Ernzerhof Functional                         |
-| ma    | MA           | Methylammonium                                             |
-| fa    | FA           | Formamidinium                                              |
-| hap   | HaP          | halide perovskite                                          |
-| pca   | PCA          | principal component analysis                               |
-| tsne  | t-SNE        | t-distributed stochastic neighbor embedding                |
-| umap  | UMAP         | uniform manifold approximation and projection              |
-| gpr   | GPR          | Gaussian Process Regression                                |
-| rfr   | RFR          | Random Forest Regression                                   |
-| sisso | SISSO        | Sure Independence Screening and Sparsifying Operator[fn:1] |
-| sqs   | SQS          | special quasi-random structures                            |
-| paw   | PAW          | projector augmented wave                                   |
-| nist  | NIST         | National Institute of Standards and Technology             |
-| pes   | PES          | Potential Energy Surface                                   |
-| shap  | SHAP         | Shapley Additive Explaination                              |
-| gnn   | GNN          | Graph Neural Networks                                      |
+| label | abbreviation | full form                                            |
+|-------+--------------+------------------------------------------------------|
+| hap   | HaP          | halide perovskite                                    |
+| vasp  | VASP         | Vienna Ab initio Simulation Package                  |
+| qmml  | QM/ML        | quantum mechanics machine learning                   |
+| slme  | SLME         | spectroscopic limited maximum efficiency             |
+| pce   | PCE          | power conversion efficiency                          |
+| dft   | DFT          | density functional theory                            |
+| gga   | GGA          | generalized gradient approximation                   |
+| pbe   | PBE          | Perdew-Burke-Ernzerhof Functional                    |
+| hse   | HSE06        | Heyd-Scuseria-Ernzerhof Functional                   |
+| ma    | MA           | Methylammonium                                       |
+| fa    | FA           | Formamidinium                                        |
+| hap   | HaP          | halide perovskite                                    |
+| pca   | PCA          | principal component analysis                         |
+| tsne  | t-SNE        | t-distributed stochastic neighbor embedding          |
+| umap  | UMAP         | uniform manifold approximation and projection        |
+| gpr   | GPR          | Gaussian Process Regression                          |
+| rfr   | RFR          | Random Forest Regression                             |
+| sisso | SISSO        | Sure Independence Screening and Sparsifying Operator |
+| sqs   | SQS          | special quasi-random structures                      |
+| paw   | PAW          | projector augmented wave                             |
+| nist  | NIST         | National Institute of Standards and Technology       |
+| pes   | PES          | Potential Energy Surface                             |
+| shap  | SHAP         | Shapley Additive Explaination                        |
+| gnn   | GNN          | Graph Neural Networks                                |
 
 
