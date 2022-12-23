@@ -530,7 +530,9 @@ We train [[acrshort:rfr][RFR]] and [[acrshort:gpr][GPR]] models of band gap on t
 the [[acrshort:gpr][GPR]] a principled linear model. We hope [[Acrfull:shap][Shapley Additive
 Explaination (SHAP)]] analysis of the models will lend insight to the
 average physical impacts of 1) site-specific alloying and 2) using
-organic molecules in the Perovskite superstructure.
+organic molecules in the Perovskite superstructure.  Model development
+and feature extraction is performed using Python and
+SciKit-Learn[[cite:&pedregosa-2011-scikit-learn]] v1.2.
 
 # Our model development will test the hypothesis that formula that fall
 # within one of the four mixing categories or one of the two
@@ -631,11 +633,13 @@ yielding more orthogonal basis sets that can be incorporated into the
 model
 
 [[acrshort:sisso][SISSO]] is run for our dataset on the same partitioning scheme used by
-the previous models. Additionally, the algorithm is informed of
-[[gls:ft][features]] units so that it is restricted to meaningful linear
-combinations. SIS [[gls:ft][features]] complexity is restricted to a maximum of 3
-operations primarily to encourage parsimonious descriptions. The
-available operation set is outlined in table ref:tbl:ops.
+the previous models via an scikit-learn
+compliant[[cite:&buitinck-2013-api]] interface[fn:5]. Additionally, the
+algorithm is informed of [[gls:ft][features]] units so that it is restricted to
+meaningful linear combinations. SIS [[gls:ft][features]] complexity is restricted
+to a maximum of 3 operations primarily to encourage parsimonious
+descriptions. The available operation set is outlined in table
+ref:tbl:ops.
 
 #+CAPTION: label:tbl:ops operations for formation of combinatorial super-space
 | Binary (dimensional) | Unary (dimensionless) |
@@ -938,11 +942,11 @@ bg\mbox{ [eV]} = 1.752075117(&(X;\mbox{Electronegativity}*A;\mbox{Heat of Fusion
 | Score Categories  |      GPR |      RFR | Linear OLS | SISSO |
 |-------------------+----------+----------+------------+-------|
 | rmse              | 0.258387 | 0.134671 |   0.499558 |       |
-| rmse_EXP          | 0.157147 | 0.188727 |   0.307186 |       |
-| rmse_PBE          | 0.204187 | 0.102778 |   0.472430 |       |
-| rmse_HSE          | 0.337971 | 0.170726 |   0.558077 |       |
-| rmse_HSE(SOC)     | 0.275642 | 0.102896 |   0.535087 |       |
-| rmse_HSE-PBE(SOC) | 0.245003 | 0.162380 |   0.466364 |       |
+| rmse EXP          | 0.157147 | 0.188727 |   0.307186 |       |
+| rmse PBE          | 0.204187 | 0.102778 |   0.472430 |       |
+| rmse HSE          | 0.337971 | 0.170726 |   0.558077 |       |
+| rmse HSE(SOC)     | 0.275642 | 0.102896 |   0.535087 |       |
+| rmse HSE-PBE(SOC) | 0.245003 | 0.162380 |   0.466364 |       |
 
 Computing and combining more than 3 SIS [[gls:ft][features]] is not rewarding of
 the computational expense. Residuals are increasingly uncorrelated
@@ -1130,9 +1134,8 @@ computers in the style of the pandas API. At its current stage, it has
 been useful for extracting composition vectors from the formula
 strings identifying each compound.
 
-Model development and feature extraction is performed using Python and
-SciKit Learn v1.2. A library of model evaluation tools to assist with
-exhaustive grid search is being maintained in the "yogi" repository at
+A library of model evaluation tools to assist with exhaustive grid
+search is being maintained in the "yogi" repository at
 [[http://github.com/PanayotisManganaris/yogi]]
 
 * WAIT Acknowledgments
@@ -1409,9 +1412,11 @@ comparable across partition size
 | verbose                  | [0]                                      | [0]              |
 | warm_start               | [False]                                  | [False]          |
 
-*** GPR
+*** COMMENT GPR
 
 * Footnotes
+
+[fn:5]https://github.com/PanayotisManganaris/pysisso
 [fn:4]https://github.com/PanayotisManganaris/yogi 
 [fn:3]https://github.com/PanayotisManganaris/cmcl
 [fn:2]https://cmr.fysik.dtu.dk/ 
