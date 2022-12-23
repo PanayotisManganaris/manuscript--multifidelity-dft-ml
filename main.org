@@ -315,11 +315,12 @@ purely inorganic [[acrshort:hap][HaP]] [[ACRshort:dft][DFT]] dataset is covered 
 [[citet:&yang-2022-high-throug]] and in [[DFT Details]].
 
 Naturally, the statistics obtained from each fidelity vary (fig
-ref:fig:bg_dist). This is the primary challenge we will address in
+ref:fig:bg_dist). This is the primary challenge we will address with
+the categorically dimensioned multi-fidelity models discussed in
 [[Methods]].
 
 #+begin_src jupyter-python :post wrap(*this*, c="label:fig:bg_dist Variability in band gap per level of theory")
-  p = px.histogram(Y, x="bg_eV", color="LoT", barmode="overlay")
+  p = px.histogram(Y, x="bg_eV", color="LoT", barmode="stack")
   p.update_xaxes(title="Band Gap [eV]")
   p.show('svg')
 #+end_src
@@ -330,7 +331,7 @@ ref:fig:bg_dist). This is the primary challenge we will address in
 #+attr_latex: :width 300pt
 #+CAPTION: label:fig:bg_dist Variability in band gap per level of theory
 #+attr_org: :width 700
-[[file:./.ob-jupyter/2ff00cfe78bc5c9b2f1f7e489f0bb2c6a0643052.svg]]
+[[file:./.ob-jupyter/d2e07289c9acdbf81dae438b7d5241ccb00224a8.svg]]
 :end:
 
 *** DONE Sampling
@@ -459,9 +460,15 @@ functional and once with the [[acrshort:hse][HSE06]] functional. Band gaps are o
 using a static band structure calculation performed at the same and at
 higher [[gls:lot][levels of theory]].
 
-The reasons for the chosen specialized functionals are as follows.
-- SOC is performed for better electronic properties.
-- D3 is performed for improved Van der Waals dispersion forces
+The chosen functionals each offer strengths and weaknesses. [[acrshort:pbe][PBE]] is
+inexpensive but typically underestimates band gaps. [[acrshort:hse][HSE06]] is orders of
+magnitude more expensive and may fail to converge structure
+relaxations but tends to be more trustworthy for electronic structure
+properties. HSE06 on PBE relaxation attempts to mitigate the
+disadvantages of each individually. The use of [[gls:soc][Spin Orbit Coupling]]
+helps to better electronic properties simulation in compounds
+containing Lead.
+# - D3 is performed for improved Van der Waals dispersion forces
 
 ** DONE Featurization of Chemistries
 :STATUSLOG:
@@ -469,7 +476,7 @@ The reasons for the chosen specialized functionals are as follows.
 :END:
 For \alpha total A-site constituents represented in the whole
 database, \beta total B-site constituents, and \gamma total X-site
-constituents, we provide a python tool[fn:3] which robustly coverts
+constituents, we provide a Python tool[fn:3] which robustly coverts
 the composition string of each data point into a \(\alpha + \beta +
 \gamma\) dimensional composition vector. In the case of our dataset
 description[[cite:&yang-2022-high-throug]] \(\alpha + \beta + \gamma =
@@ -840,10 +847,12 @@ gap.
 # try to visualize a pattern
 
 ** TODO Comparing Feature Usefulness to Raw Correlations
-The scores for the nonlinear model does not indicate much use for
-X-site elements. However, the B site elements contribute much more to
-the band gap on average, which is consistent with our physical
-understanding. Curiously, A site elements also prove to be relevant.
+:PROPERTIES:
+:ID:       5b5623d8-3db9-44e9-8e94-75644b3ef5b7
+:END:
+It is interesting to see how models make use of features in light of
+basic bi-variate correlations. The only [[gls:ft][features]] that correlate
+strongly with band gap are illustrated in figure ref:fig:rpear.
 
 # Likewise, with respect to the generality measure conducted earlier, it
 # seems the presence of individual elements is far more predictive of
@@ -852,21 +861,20 @@ understanding. Curiously, A site elements also prove to be relevant.
 # despite those groups containing no B-site alloys themselves, they do
 # contain a representative sample of B-site elements.
 
-It is interesting to see how models make use of features in light of
-said features basic bi-variate correlations
-
 #+begin_src jupyter-python
-  sub = pearson.iloc[[56, 59], 0:55]
-  ytitles = ["Band Gap [eV]", "Decomposition Energy [eV]"]
-  sub = sub.loc[:,(sub.abs()>0.5).sum(axis=0).apply(bool)]
+  XY = pd.concat([XX, YY], axis=1).select_dtypes(np.number).fillna(0)
+  pearson = pd.DataFrame(np.corrcoef(XY, rowvar=False),
+                         columns=XY.columns,
+                         index=XY.columns)
+  sub = pearson.iloc[56, 0:55]
+  ytitles = ["Band Gap [eV]"]
+  sub = sub.loc[(sub.abs()>0.5).apply(bool)].to_frame().T
 #+end_src
 
-#+RESULTS:
-
-#+begin_src jupyter-python
+#+begin_src jupyter-python :post wrap(*this*, "200pt", "label:fig:rpear raw features with (\\(|p|>0.5\\) against band gap")
   p = px.imshow(sub, color_continuous_scale='RdBu_r', zmin=-1, zmax=1,
                 labels=dict(color="Pearson Coefficient"),
-                y = ytitles,
+                y = ytitles, text_auto='.2f',
                 height=300
                 )
   p.update_xaxes(tickangle=-35)
@@ -882,9 +890,18 @@ said features basic bi-variate correlations
       xaxis = dict(tickmode='array',
                    tickvals=list(range(sub.columns.shape[0])),
                    ticktext=sub.columns.str.slice(6).str.replace("'", "").str.replace("_"," ")
-  )
+  ))
   p.show(renderer='svg')
 #+end_src
+
+#+RESULTS:
+:results:
+ 
+#+attr_latex: :width 200pt
+#+CAPTION: label:fig:rpear raw features with (\(|p|>0.5\) against band gap
+#+attr_org: :width 700
+[[file:./.ob-jupyter/d5ef9be66c821589ae89b022c58b3bcf20171bf5.svg]]
+:end:
 
 ** TODO SISSO Model and Incidental Engineered Features
 The [[Acrfull:sisso][Sure Independence Screening and Sparsifying Operator (SISSO)]]
@@ -910,24 +927,121 @@ bg\mbox{ [eV]} = 1.752075117(&(X;\mbox{Electronegativity}*A;\mbox{Heat of Fusion
 
 Computing and combining more than 3 SIS [[gls:ft][features]] is not rewarding of
 the computational expense. Residuals are increasingly uncorrelated
-with the observations and model accuracy gains do not outstrip
-complexity. However, In the process of creating Equation ref:eq:bgexp,
-150 SIS predictor variables were determined and recorded. These can
-serve as a high quality, introspective domain for the other
-architectures to fit on.
+with the generated SIS [[gls:ft][features]] and model accuracy gains do not
+outstrip complexity. However, in the process of creating Equation
+ref:eq:bgexp, 150 SIS predictor variables were determined and
+recorded. 50 primary predictors, 50 first residual predictors, and 50
+second residual predictors. These can serve as a high quality,
+introspective domain for the other architectures to fit on.
 
 We set the aim of decreasing \(\mathcal{O}(n^3)\) computational
-expense of GPR by \approx{}10 times. So, we aim to take 20 highly
+expense of [[acrshort:gpr][GPR]] by \approx{}10 times. So, we aim to take 20 highly
 correlated [[gls:ft][features]] (slightly less than one half the number used by
 prior models) from these SIS subspaces. We expect this to solve the
 problems inherent to the raw [[Featurization of Chemistries]]
 
-Computing [[ACRshort:gpr][GPR]] in conjunction with SIS features, we can create
-extrapolative models on a much more continuous domain.
+Computing [[ACRshort:gpr][GPR]] in conjunction with SIS [[gls:ft][features]], we can create
+extrapolative models on a much more continuous domain. Using [[ACRshort:gpr][GPR]] on
+the SIS subspaces also leverages SISSO's explicability while obtaining
+uncertainty estimates, which is helpful for our inverse design
+ambitions.
 
-In particular, using [[ACRshort:gpr][GPR]] with [[ACRshort:sisso][SISSO]] also leverages the SIS features
-while obtaining uncertainty estimates, which is helpful for our
-inverse design ambitions.
+** TODO COMMENT create subplots
+*** rfr
+#+begin_src jupyter-python
+  data = pd.read_csv(os.path.expanduser('~/data/perovskites/rfr_pred.csv'), index_col=0)
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python :post wrap(*this*)
+  x='true'
+  y='pred'
+  p1 = px.scatter(
+      data[data.partition=='test'],
+      x=x, y=y,
+      # facet_col='partition',
+      hover_name="Formula",
+      color="LoT"
+  )
+  p1.update_traces(
+      marker_size=10.
+      # marker_opacity=0.2,
+      # selector={'marker_symbol':'circle'}
+  )
+  xlims = min(data[x]), max(data[y])
+  ylims = min(data[y]), max(data[y])
+  p1.add_scatter(x = [min(xlims+ylims), max(xlims+ylims)],
+                y = [min(xlims+ylims), max(xlims+ylims)],
+                mode='lines', name="parity", marker=dict(color="black"),
+                row='all', col='all')
+  p1.update_layout(title_text='Band Gaps [eV] (test partition)',
+                  font_family='arial narrow', font_size=30,
+                  margin=dict(t=70,b=0,l=0,r=0))
+  p1.update_xaxes(title='DFT Calculation', constrain='domain', mirror = True)
+  p1.update_yaxes(title='ML Prediction', scaleanchor='x', mirror=True)
+  #p1.update_annotations(visible=False)
+  p1.show(renderer='svg')
+#+end_src
+
+#+RESULTS:
+:results:
+ 
+#+attr_latex: :width 300pt
+#+CAPTION: 
+#+attr_org: :width 700
+[[file:./.ob-jupyter/10fa09156cc4b175e28eeac2a6d9a03ae1191db4.svg]]
+:end:
+
+*** gpr
+#+begin_src jupyter-python
+  data = pd.read_csv(os.path.expanduser('~/data/perovskites/gpr_pred.csv'), index_col=0)
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python :post wrap(*this*)
+  x='true'
+  y='pred'
+  p2 = px.scatter(
+      data[data.partition=='test'],
+      x=x, y=y,
+      # facet_col='partition',
+      hover_name="Formula",
+      color="LoT"
+  )
+  p2.update_traces(
+      marker_size=10.
+      # marker_opacity=0.2,
+      # selector={'marker_symbol':'circle'}
+  )
+  xlims = min(data[x]), max(data[y])
+  ylims = min(data[y]), max(data[y])
+  p2.add_scatter(x = [min(xlims+ylims), max(xlims+ylims)],
+                y = [min(xlims+ylims), max(xlims+ylims)],
+                mode='lines', name="parity", marker=dict(color="black"),
+                row='all', col='all')
+  p2.update_layout(title_text='Band Gaps [eV] (test partition)',
+                  font_family='arial narrow', font_size=30,
+                  margin=dict(t=70,b=0,l=0,r=0))
+  p2.update_xaxes(title='DFT Calculation', constrain='domain', mirror = True)
+  p2.update_yaxes(title='ML Prediction', scaleanchor='x', mirror=True)
+  #p2.update_annotations(visible=False)
+  p2.show(renderer='svg')
+#+end_src
+
+#+RESULTS:
+:results:
+ 
+#+attr_latex: :width 300pt
+#+CAPTION: 
+#+attr_org: :width 700
+[[file:./.ob-jupyter/4a818e39a1ca199e69e404bac81f520070c30926.svg]]
+:end:
 
 ** TODO Best Models on Engineered Domain
 ** CANCELED COMMENT Genetic algorithm results
@@ -997,7 +1111,7 @@ computers in the style of the pandas API. At its current stage, it has
 been useful for extracting composition vectors from the formula
 strings identifying each compound.
 
-Model development and feature extraction is performed using python and
+Model development and feature extraction is performed using Python and
 SciKit Learn v1.2. A library of model evaluation tools to assist with
 exhaustive grid search is being maintained in the "yogi" repository at
 [[http://github.com/PanayotisManganaris/yogi]]
@@ -1292,8 +1406,8 @@ comparable across partition size
 | agn   | ALIGNN                  | the Atomistic Line Graph Neural Network considers relative positions of atoms in a crystal as well as the relative angles between bonds by creating two related node and edge graphs and convluting them in a staggered manner together |
 | gp    | Gaussian Process        | Any function which returns samples from an underlying multivariate normal distribution                                                                                                                                                  |
 | fair  | FAIR                    | Findable Accessible Interoperable and Reusable Data                                                                                                                                                                                     |
-| mtl   | multi-task learning     | A type of machine learning where an algorithm learns multiple functions simultaneously, while exploiting commonalities and differences between the functions                                            |
-
+| mtl   | multi-task learning     | A type of machine learning where an algorithm learns multiple functions simultaneously, while exploiting commonalities and differences between the functions                                                                            |
+| soc   | Spin Orbit Coupling     | An additional term intended to account for the increased relevance of quantum angular momentum to electromagnetic response in heavy atoms                                                                                               |
 
 #+name: acronyms
 | label | abbreviation | full form                                            |
