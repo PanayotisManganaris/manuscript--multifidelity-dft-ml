@@ -918,14 +918,14 @@ resulting in a symbolically expressed regression model.
 
 The best model for band gap returned by 5 trials of SISSO involves 3
 SIS [[gls:ft][features]] and has an unremarkable RMSE of 0.4625 eV, barely
-outperforming an OLS regression on 55 dimensions
-ref:tbl:rawLoTscores. It is expressed in equation
+outperforming an OLS regression on 55 dimensions (see Table
+ref:tbl:rawLoTscores). It is expressed in equation
 ref:eq:bgexp. Notably, while the units of the expression do not match
 the units of band gap as measured (target units are unknown to the
 algorithm), they are still energy units.
 
-#+CAPTION: label:eq:bgexp Band gap estimator expression
 \begin{align}
+\label{eq:bgexp}
 bg\mbox{ [eV]} = 1.752075117(&(X;\mbox{Electronegativity}*A;\mbox{Heat of Fusion})\\ \nonumber
                 &-(B;\mbox{Ionization Energy}+B;\mbox{Electron affinity}))\\ \nonumber
 - 0.5759612116(&B;\ce{Sn}+X;\mbox{Z}-\mbox{HSErel}-\mbox{PBErel})\\ \nonumber
