@@ -804,7 +804,13 @@ available operation set is outlined in table ref:tbl:ops.
 [[file:./.ob-jupyter/e8d56a58c17c3b333f96a8fa83097eab4eca15ee.svg]]
 :end:
 
-** DONE SHAP Analysis of Domain
+The exhaustively optimized models are obviously high performing (Table
+ref:tbl:rawLoTscores). The [[acrshort:rfr][RFR]] [[gls:hp][hyper-parameters]] are listed in [[HPO
+Summary Tables]] (Table ref:tbl:rfrHPO). The [[acrshort:gpr][GPR]] model is tried with
+multiple kernels. Ultimately, the best is a non stationary Matern
+kernel with \(\nu = \frac{3}{2}\).
+
+** TODO SHAP Analysis of Domain
 :STATUSLOG:
 - State "DONE"       from "TODO"       [2022-12-21 Wed 22:20]
 :END:
@@ -911,10 +917,12 @@ combination of multiple data mining techniques chained together
 resulting in a symbolically expressed regression model.
 
 The best model for band gap returned by 5 trials of SISSO involves 3
-SIS [[gls:ft][features]] and has an unremarkable RMSE of 0.4625 eV. It is
-expressed in equation ref:eq:bgexp. Notably, while the units of the
-expression do not match the units of band gap as measured (target
-units are unknown to the algorithm), they are still energy units.
+SIS [[gls:ft][features]] and has an unremarkable RMSE of 0.4625 eV, barely
+outperforming an OLS regression on 55 dimensions
+ref:tbl:rawLoTscores. It is expressed in equation
+ref:eq:bgexp. Notably, while the units of the expression do not match
+the units of band gap as measured (target units are unknown to the
+algorithm), they are still energy units.
 
 #+CAPTION: label:eq:bgexp Band gap estimator expression
 \begin{align}
@@ -925,6 +933,16 @@ bg\mbox{ [eV]} = 1.752075117(&(X;\mbox{Electronegativity}*A;\mbox{Heat of Fusion
              &\times(B;\mbox{Heat of Vaporization}-X;\mbox{Ionization Energy}))\\ \nonumber
 + 5.254074603 &\mbox{ [kJ/mol]}
 \end{align}
+
+#+CAPTION: label:tbl:rawLoTscores RMSE of models on raw domain calculated per LoT subset
+| Score Categories  |      GPR |      RFR | Linear OLS | SISSO |
+|-------------------+----------+----------+------------+-------|
+| rmse              | 0.258387 | 0.134671 |   0.499558 |       |
+| rmse_EXP          | 0.157147 | 0.188727 |   0.307186 |       |
+| rmse_PBE          | 0.204187 | 0.102778 |   0.472430 |       |
+| rmse_HSE          | 0.337971 | 0.170726 |   0.558077 |       |
+| rmse_HSE(SOC)     | 0.275642 | 0.102896 |   0.535087 |       |
+| rmse_HSE-PBE(SOC) | 0.245003 | 0.162380 |   0.466364 |       |
 
 Computing and combining more than 3 SIS [[gls:ft][features]] is not rewarding of
 the computational expense. Residuals are increasingly uncorrelated
@@ -1366,8 +1384,31 @@ seeded with a deterministic random state to ensure scores are
 comparable across partition size
 
 ** TODO COMMENT Generality Tests
-** TODO COMMENT HPO Summary Tables
-*** RFR
+** TODO HPO Summary Tables
+*** Random Forest Pipeline Control Parameters
+
+#+CAPTION: label:tbl:rfrHPO Select hyper-parameters from exhaustive search of 10368 models
+|                          | Search Space                             | Selected Space   |
+|--------------------------+------------------------------------------+------------------|
+| normalizer__norm         | [l1, l2, max]                            | [l2]             |
+| bootstrap                | [True]                                   | [True]           |
+| ccp_alpha                | [0.0, 0.002]                             | [0.0]            |
+| criterion                | [squared_error, absolute_error, poisson] | [absolute_error] |
+| max_depth                | [25, 20]                                 | [20]             |
+| max_features             | [auto, 3, 5]                             | [1.0]            |
+| max_leaf_nodes           | [700, 800]                               | [750]            |
+| max_samples              | [0.9, 0.6, 0.3]                          | [0.9]            |
+| min_impurity_decrease    | [0.0, 0.3]                               | [0.0]            |
+| min_samples_leaf         | [1]                                      | [1]              |
+| min_samples_split        | [2, 5]                                   | [2]              |
+| min_weight_fraction_leaf | [0.0]                                    | [0.0]            |
+| n_estimators             | [20, 50, 100]                            | [150]            |
+| n_jobs                   | [4]                                      | [4]              |
+| oob_score                | [True]                                   | [True]           |
+| random_state             | [None]                                   | [None]           |
+| verbose                  | [0]                                      | [0]              |
+| warm_start               | [False]                                  | [False]          |
+
 *** GPR
 
 * Footnotes
