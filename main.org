@@ -700,7 +700,7 @@ available operation set is outlined in table ref:tbl:ops.
 #+attr_latex: :width 300pt
 #+CAPTION: 
 #+attr_org: :width 700
-[[file:./.ob-jupyter/10fa09156cc4b175e28eeac2a6d9a03ae1191db4.svg]]
+[[file:./.ob-jupyter/68f21ba48c8b938ab0efbd8ee65b3388642d086e.svg]]
 :end:
 
 *** gpr
@@ -748,7 +748,7 @@ available operation set is outlined in table ref:tbl:ops.
 #+attr_latex: :width 300pt
 #+CAPTION: 
 #+attr_org: :width 700
-[[file:./.ob-jupyter/4a818e39a1ca199e69e404bac81f520070c30926.svg]]
+[[file:./.ob-jupyter/5f3919f6cd6e7e3b2c299d1361a3b109d05f81cf.svg]]
 :end:
 
 ** DONE Best Models on Raw Domain
@@ -756,7 +756,7 @@ available operation set is outlined in table ref:tbl:ops.
 - State "DONE"       from              [2022-12-21 Wed 13:21]
 :END:
 # make sure to create subplots first
-#+begin_src jupyter-python :post wrap(*this*, w="300pt :float multicol", c="label:fig:pairplots Multi-fidelity model predictions vs Experimental values")
+#+begin_src jupyter-python :post wrap(*this*, w="450pt :float multicol :options inkscapeformat=png, inkscapedpi=300 inkscapeformat=png, inkscapedpi=300", c="label:fig:pairplots Multi-fidelity model predictions vs Experimental values")
     p0 = make_subplots(rows=1, cols=2)
 
     for trace1, trace2 in zip(p1.data, p2.data):
@@ -801,7 +801,7 @@ available operation set is outlined in table ref:tbl:ops.
  
 #+attr_latex: :width 450pt :float multicol :options inkscapeformat=png, inkscapedpi=300
 #+CAPTION: label:fig:pairplots Multi-fidelity model predictions vs Experimental values
-[[file:./.ob-jupyter/e8496f3d4b7310af1c8a8f0448250398e72aed35.svg]]
+[[file:./.ob-jupyter/e8d56a58c17c3b333f96a8fa83097eab4eca15ee.svg]]
 :end:
 
 ** DONE SHAP Analysis of Domain
@@ -809,7 +809,7 @@ available operation set is outlined in table ref:tbl:ops.
 - State "DONE"       from "TODO"       [2022-12-21 Wed 22:20]
 :END:
 #+CAPTION: label:fig:rfrSHAP Random Forest Regression Band Gap SHAP Values
-#+attr_latex: :width 450pt :placement [H]
+#+attr_latex: :width 450pt
 [[file:/home/panos/Documents/manuscripts/DFT+ML+feature_engineering/RFR/.ob-jupyter/704d3204752bc52a936aeb9d96e45380512c8c3d.png]]
 
 [[acrshort:shap][SHAP]] scores are computed automatically for every dimension of every
@@ -835,7 +835,7 @@ positive contributions from other features to claw back up to a
 positive valued band gap.
 
 #+CAPTION: label:fig:gprSHAP Gaussian Process Regression Band Gap SHAP Values
-#+attr_latex: :width 450pt :placement [H]
+#+attr_latex: :width 450pt
 [[file:/home/panos/Documents/manuscripts/DFT+ML+feature_engineering/GPR/.ob-jupyter/df8f4cdfbd4884fe978d0b0dc85e13e95137248c.png]]
 
 These [[acrshort:shap][SHAP]] scores can be used to gain insights into the contributions
@@ -871,7 +871,7 @@ strongly with band gap are illustrated in figure ref:fig:rpear.
   sub = sub.loc[(sub.abs()>0.5).apply(bool)].to_frame().T
 #+end_src
 
-#+begin_src jupyter-python :post wrap(*this*, "200pt", "label:fig:rpear raw features with (\\(|p|>0.5\\) against band gap")
+#+begin_src jupyter-python :post wrap(*this*, "200pt :options inkscapeformat=png, inkscapedpi=300", "label:fig:rpear raw features with (\\(|p|>0.5\\)) against band gap")
   p = px.imshow(sub, color_continuous_scale='RdBu_r', zmin=-1, zmax=1,
                 labels=dict(color="Pearson Coefficient"),
                 y = ytitles, text_auto='.2f',
@@ -884,12 +884,13 @@ strongly with band gap are illustrated in figure ref:fig:rpear.
       paper_bgcolor='rgba(255,255,255,0)',
       plot_bgcolor='rgba(255,255,255,0)',
       margin=dict(t=0,b=0,l=0,r=0),
-      font_size=20
   )
   p.update_layout(
       xaxis = dict(tickmode='array',
                    tickvals=list(range(sub.columns.shape[0])),
-                   ticktext=sub.columns.str.slice(6).str.replace("'", "").str.replace("_"," ")
+                   ticktext=sub.columns.str.slice(6).str.replace("'", "").str.replace("_"," "),
+                   font_size=40
+      xaxis = dict(font_size=40)
   ))
   p.show(renderer='svg')
 #+end_src
@@ -897,10 +898,10 @@ strongly with band gap are illustrated in figure ref:fig:rpear.
 #+RESULTS:
 :results:
  
-#+attr_latex: :width 200pt
-#+CAPTION: label:fig:rpear raw features with (\(|p|>0.5\) against band gap
+#+attr_latex: :width 200pt :options inkscapeformat=png, inkscapedpi=300
+#+CAPTION: label:fig:rpear raw features with (\(|p|>0.5\)) against band gap
 #+attr_org: :width 700
-[[file:./.ob-jupyter/d5ef9be66c821589ae89b022c58b3bcf20171bf5.svg]]
+[[file:./.ob-jupyter/bee19f4a89b8480a3d67cc87af798e711d963581.svg]]
 :end:
 
 ** TODO SISSO Model and Incidental Engineered Features
@@ -915,7 +916,7 @@ expressed in equation ref:eq:bgexp. Notably, while the units of the
 expression do not match the units of band gap as measured (target
 units are unknown to the algorithm), they are still energy units.
 
-label:eq:bgexp
+#+CAPTION: label:eq:bgexp Band gap estimator expression
 \begin{align}
 bg\mbox{ [eV]} = 1.752075117(&(X;\mbox{Electronegativity}*A;\mbox{Heat of Fusion})\\ \nonumber
                 &-(B;\mbox{Ionization Energy}+B;\mbox{Electron affinity}))\\ \nonumber
@@ -1099,7 +1100,7 @@ design framework follows naturally.  In particular, the [[ACRshort:gpr][GPR]] sh
 drive an active learning approach.
 
 An ongoing goal will be to grow a database of experimentally examined
-perovskite photovoltaic prototypes will well defined structures.
+perovskite photovoltaic prototypes with well defined structures.
 
 ** Software Tools
 A couple of libraries are in development for easing the aggregation,
