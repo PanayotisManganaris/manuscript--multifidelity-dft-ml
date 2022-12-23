@@ -10,7 +10,8 @@
 #+creator: Emacs 29.0.50 (Org mode 9.5.2)
 #+cite_export:
 #+latex_class: revtex
-#+latex_class_options: [aip, jmp, amsmath, amssymb]
+#+latex_class_options: [aip, jmp, amsmath, amssymb, nofootinbib]
+#+latex_header:\usepackage[version=4]{mhchem}
 #+latex_header:\usepackage{listings}
 #+latex_header:\usepackage{glossaries}
 #+latex_header:\usepackage[automake]{glossaries-extra}
@@ -311,11 +312,11 @@ expected to aid in [[Future Work][inverse design]] and in [[Feature Engineering]
 
 A detailed analysis of this combined hybrid organic-inorganic and
 purely inorganic [[acrshort:hap][HaP]] [[ACRshort:dft][DFT]] dataset is covered in a prior article by
-[[citet:&yang-2022-high-throug]] and in section [[DFT Details]].
+[[citet:&yang-2022-high-throug]] and in [[DFT Details]].
 
 Naturally, the statistics obtained from each fidelity vary (fig
 ref:fig:bg_dist). This is the primary challenge we will address in
-section [[Methods]].
+[[Methods]].
 
 #+begin_src jupyter-python :post wrap(*this*, c="label:fig:bg_dist Variability in band gap per level of theory")
   p = px.histogram(Y, x="bg_eV", color="LoT", barmode="overlay")
@@ -352,15 +353,15 @@ Within this sample space, we try to maintain a balance in the share of
 samples that represent each one of the "[[gls:cmix][cardinal mixing]]"
 categories. Additionally, within each mix we try to maintain a
 reasonable balance of purely inorganic samples versus hybrid
-organic-inorganic samples. See figure ref:fig:lot_mix_org. See section
-[[Methods]] for details on how these categories were utilized in model
+organic-inorganic samples. See figure ref:fig:lot_mix_org. See [[Methods]]
+for details on how these categories were utilized in model
 development.
 
 The design of this dataset provides an opportunity to assess the
 ability of our models to extrapolate with respect to alloying scheme
 as well as [[gls:lot][level of theory]]. It also provides an opportunity to
 investigate the statistical impact of constituent compounds on
-perovskite property prediction. See section [[Results and Discussion]].
+perovskite property prediction. See [[Results and Discussion]].
 
 #+begin_src jupyter-python :post wrap(*this*, c="label:fig:lot_mix_org Share by count of total data apportioned from each experimental subcategory")
   p = px.sunburst(my, path=['LoT','mix','org'])
@@ -490,24 +491,25 @@ description[[cite:&yang-2022-high-throug]] \(\alpha + \beta + \gamma =
 : MAPb(I0.41Br0.59)3  1.0  NaN   1  1.23  1.77
 :end:
 
-This is naturally a spare, relatively high dimensional
-descriptor. With any growth in the composition space is becomes
+This is naturally a sparse, relatively high dimensional
+descriptor. With any growth in the composition space it becomes
 sparser. This descriptor has been shown to be effective for
 interpolating the properties of irregularly mixed large
 supercells[[cite:&mannodi-kanakkithodi-2022-data-driven]], However, a
 spare descriptor is generally bad for extrapolative
-modeling[[cite:&ghiringhelli-2015-big-data]], Dense, unique, and linearly
-independent features are much more reliable when extrapolation is the
-aim[[cite:&lux-2020-inter-spars]]. Our attempts to provide a domain with
-these characteristics results in the following raw feature space.
+modeling[[cite:&ghiringhelli-2015-big-data]]. When extrapolation is the
+aim, continuously distributed, unique, and linearly independent
+features are much more reliable[[cite:&lux-2020-inter-spars]]. Our
+attempts to provide a domain with these characteristics results in the
+following raw feature space.
 
 - 14 sparse composition vectors extracted from chemical formula
   - generated using cmcl[fn:3]
-  - see Appendix [[Predictor Variables]] 
+  - see [[Predictor Variables]] 
 - 36 dense site-averaged property space
   - computed as a linear combination of composition vectors and
     measured elemental properties[[cite:&mentel-2014]]
-  - see Appendix [[Predictor Variables]] 
+  - see [[Predictor Variables]] 
 - 5 categorical dimensions one-hot-encoding [[gls:lot][level of theory]].
   - this provides the domain-side categorical axis for [[gls:mtl][multi-task learning]]
   - see table ref:tbl:LoTs
@@ -518,12 +520,10 @@ these characteristics results in the following raw feature space.
 :END:
 We train [[acrshort:rfr][RFR]] and [[acrshort:gpr][GPR]] models of band gap on the union of predictor
 [[gls:ft][features]] previously discussed. The [[acrshort:rfr][RFR]] is a flexible nonlinear model,
-the [[acrshort:gpr][GPR]] a principled linear model.
-
-We hope [[Acrfull:shap][Shapley Additive Explaination (SHAP)]] analysis of the models
-will lend insight to the average physical impacts of 1) site-specific
-alloying and 2) using organic molecules in the Perovskite
-superstructure.
+the [[acrshort:gpr][GPR]] a principled linear model. We hope [[Acrfull:shap][Shapley Additive
+Explaination (SHAP)]] analysis of the models will lend insight to the
+average physical impacts of 1) site-specific alloying and 2) using
+organic molecules in the Perovskite superstructure.
 
 # Our model development will test the hypothesis that formula that fall
 # within one of the four mixing categories or one of the two
@@ -536,8 +536,8 @@ expect this will help to ensure the models learn relationships between
 fidelities, not differences in alloy scheme or constituency
 distributions within each fidelity.
 
-Each model architecture is rigorously optimized with regard to both
-1) generality over the domains of Perovskite compositions and
+Each model architecture is rigorously optimized with regard to both 1)
+generality over the domains of Perovskite compositions and
 site-averaged constituent properties and 2) generality over the domain
 of alloy classifications.
 
@@ -557,10 +557,10 @@ mixing]] represented in our sample.
 We do this by training each model using two test/train splits. First,
 the optimal model parameters are chosen for their performance under a
 random split. A minimum of 3-fold cross-validation is performed for
-every set of model parameters that is considered (See Appendix
-[[Learning Curves]]). Finally, the optimized model's ability to
-extrapolate is tested by training/testing on splits determined with a
-[[gls:gkf][groupwise K-fold]] splitting strategy.
+every set of model parameters that is considered (See [[Learning
+Curves]]). Finally, the optimized model's ability to extrapolate is
+tested by training/testing on splits determined with a [[gls:gkf][groupwise
+K-fold]] splitting strategy.
 
 Two separate cross validation schemes are employed at each stage of
 the design process. First, the sample set is shuffled once and split
@@ -587,41 +587,58 @@ This procedure in demonstrated via an online Notebook by
 :STATUSLOG:
 - State "DONE"       from "TODO"       [2022-12-21 Wed 16:51]
 :END:
-There has been much recorded success in creating analytical predictors
-of perovskite properties, particularly lattice
-parameters[[cite:&jiang-2006-predic-lattic]]. We were curious if such an
-analytical predictor could be found for band gap. This lead to the use
-of the [[Acrfull:sisso][Sure Independence Screening and Sparsifying Operator
-(SISSO)]][[cite:&ouyang-2018-sisso]].
+There has been success in creating analytical expressions for
+perovskite properties, particularly lattice
+parameters[[cite:&jiang-2006-predic-lattic]]. In an attempt to find an
+analytical predictor for band gap we employ the [[Acrfull:sisso][Sure Independence
+Screening and Sparsifying Operator (SISSO)]][[cite:&ouyang-2018-sisso]].
 
 SIS[fn:1] is a powerful application of compressed
-sensing[[cite:&ghiringhelli-2017-learn-physic]]. It allows the program to
-effectively find candidates for a linearly independent basis in a
-vector space of immense size. unlike legacy techniques, e.g. LASSO, it
-does not suffer when keys are
+sensing[[cite:&ghiringhelli-2017-learn-physic]]. The SIS operator is a
+potent dimensionality reduction technique. It does not perform any
+mathematical decomposition but instead picks existent dimensions that
+begin to approximate an orthogonal basis it outperforms
+CUR[[cite:&ray-2021-various-dimen;&hamm-2019-cur-decom]] decomposition by
+functioning effectively in extremely high rank vector spaces. This is
+accomplished by posing the decomposition as a compressed sensing
+problem in the correlation metric space.
+
+It allows the program to effectively find candidates for a linearly
+independent basis in a vector space of immense size. unlike legacy
+techniques, e.g. LASSO, it does not suffer when [[gls:ft][features]] are
 correlated[[cite:&tibshirani-1996-regres-shrin;&gauraha-2018-introd-to-lasso]]. This
 allows for it to be used in performing a brute force search of a
-super-space generated by combinatorial operations on the raw
-predictors (Appendix [[Predictor Variables]]).
+super-space generated by combinatorial operations on the raw [[Predictor
+Variables]].
 
-The Sparsifying Operator finds members of the resulting basis which
-correlate with the target co-domain. it does this by creating a
+The Sparsifying Operator finds members of the resulting basis set
+which correlate with the target co-domain. it does this by creating a
 sparsified linear model, similar again to a LASSO. This process
 produces an analytic model of the target property, which is easy to
 interpret and can even be constrained for consistent combination of
 dimension units.
 
 Subsequent applications of the SIS operator to the residuals of this
-model yield another orthogonal basis set that can be incorporated into
-the model. All together representing a clever interrogation of
-error[[cite:&mayo-1998-error-growt]].
+model are a clever interrogation of error[[cite:&mayo-1998-error-growt]]
+yielding more orthogonal basis sets that can be incorporated into the
+model
 
-Unfortunately, the linear model is unremarkable for band gap, seeing a
-drop-off in accuracy gains above 3 combined explanatory
-terms. However, in the process of returning this SISSO model, 150 SIS
-predictor variables were determined and recorded. These can serve as a
-high quality, fully introspective domain for the previous
-architectures to fit on.
+[[acrshort:sisso][SISSO]] is run for our dataset on the same partitioning scheme used by
+the previous models. Additionally, the algorithm is informed of
+[[gls:ft][features]] units so that it is restricted to meaningful linear
+combinations. SIS [[gls:ft][features]] complexity is restricted to a maximum of 3
+operations primarily to encourage parsimonious descriptions. The
+available operation set is outlined in table ref:tbl:ops.
+
+#+CAPTION: label:tbl:ops operations for formation of combinatorial super-space
+| Binary (dimensional) | Unary (dimensionless) |
+|----------------------+-----------------------|
+| addition             | reciprocation         |
+| subtraction          | power 2               |
+| multiplication       | power 3               |
+| division             | natural logarithm     |
+|                      | exponentiation        |
+|                      | root 2                |
 
 * TODO Results and Discussion
 :PROPERTIES:
@@ -727,7 +744,7 @@ architectures to fit on.
 [[file:./.ob-jupyter/4a818e39a1ca199e69e404bac81f520070c30926.svg]]
 :end:
 
-** DONE Best Models
+** DONE Best Models on Raw Domain
 :STATUSLOG:
 - State "DONE"       from              [2022-12-21 Wed 13:21]
 :END:
@@ -814,7 +831,30 @@ positive valued band gap.
 #+attr_latex: :width 450pt :placement [H]
 [[file:/home/panos/Documents/manuscripts/DFT+ML+feature_engineering/GPR/.ob-jupyter/df8f4cdfbd4884fe978d0b0dc85e13e95137248c.png]]
 
+These [[acrshort:shap][SHAP]] scores can be used to gain insights into the contributions
+of site members and site member properties to the perovskite band
+gap.
+
+# it is necessary to find which B-elements strongly positive SHAP scores belong to
+# next, find which predictors these correspond with
+# try to visualize a pattern
+
 ** TODO Comparing Feature Usefulness to Raw Correlations
+The scores for the nonlinear model does not indicate much use for
+X-site elements. However, the B site elements contribute much more to
+the band gap on average, which is consistent with our physical
+understanding. Curiously, A site elements also prove to be relevant.
+
+# Likewise, with respect to the generality measure conducted earlier, it
+# seems the presence of individual elements is far more predictive of
+# the total band gap than mix status. This would explain why X-site and
+# A-site alloys are sufficient to predict the band gaps of B-site alloys,
+# despite those groups containing no B-site alloys themselves, they do
+# contain a representative sample of B-site elements.
+
+It is interesting to see how models make use of features in light of
+said features basic bi-variate correlations
+
 #+begin_src jupyter-python
   sub = pearson.iloc[[56, 59], 0:55]
   ytitles = ["Band Gap [eV]", "Decomposition Energy [eV]"]
@@ -846,72 +886,50 @@ positive valued band gap.
   p.show(renderer='svg')
 #+end_src
 
-** TODO engineered features for Enhanced Correlation
+** TODO SISSO Model and Incidental Engineered Features
 The [[Acrfull:sisso][Sure Independence Screening and Sparsifying Operator (SISSO)]]
-[[cite:&ouyang-2018-sisso;&ghiringhelli-2017-learn-physic]] is a specific combination of
-multiple data mining techniques chained together so as to result in a
-symbolically expressed model.
+[[cite:&ouyang-2018-sisso;&ghiringhelli-2017-learn-physic]] is a specific
+combination of multiple data mining techniques chained together
+resulting in a symbolically expressed regression model.
 
-The implementation further leverages this technique by applying it
-iteratively. First, to a super-space generated by combinatorial
-superposition of existing dimensions, second to the residuals of the
-resulting one-dimensional model, third to the residuals of the 2D
-model, and so on.
+The best model for band gap returned by 5 trials of SISSO involves 3
+SIS [[gls:ft][features]] and has an unremarkable RMSE of 0.4625 eV. It is
+expressed in equation ref:eq:bgexp. Notably, while the units of the
+expression do not match the units of band gap as measured (target
+units are unknown to the algorithm), they are still energy units.
 
-The SIS operator implemented by the [[ACRshort:sisso][SISSO]] code[[cite:&ouyang-2018-sisso]]
-is useful well beyond the constraints of the SO predictor. The SIS
-operator is a potent dimensionality reduction technique. It does not
-perform any mathematical decomposition but instead picks existent
-dimensions that begin to approximate an orthogonal basis. 
+label:eq:bgexp
+\begin{align}
+bg\mbox{ [eV]} = 1.752075117(&(X;\mbox{Electronegativity}*A;\mbox{Heat of Fusion})\\ \nonumber
+                &-(B;\mbox{Ionization Energy}+B;\mbox{Electron affinity}))\\ \nonumber
+- 0.5759612116(&B;\ce{Sn}+X;\mbox{Z}-\mbox{HSErel}-\mbox{PBErel})\\ \nonumber
++ 1.074246385(&(A;\mbox{Electronegativity}-B;\ce{Ca})\\ \nonumber
+             &\times(B;\mbox{Heat of Vaporization}-X;\mbox{Ionization Energy}))\\ \nonumber
++ 5.254074603 &\mbox{ [kJ/mol]}
+\end{align}
 
-It outperforms CUR[[cite:&ray-2021-various-dimen;&hamm-2019-cur-decom]]
-decomposition by functioning effectively in extremely high rank vector
-spaces. This is accomplished by posing the decomposition as a
-compressed sensing problem in the correlation metric space. 
+Computing and combining more than 3 SIS [[gls:ft][features]] is not rewarding of
+the computational expense. Residuals are increasingly uncorrelated
+with the observations and model accuracy gains do not outstrip
+complexity. However, In the process of creating Equation ref:eq:bgexp,
+150 SIS predictor variables were determined and recorded. These can
+serve as a high quality, introspective domain for the other
+architectures to fit on.
 
-Computing [[ACRshort:gpr][GPR]] in conjunction with SIS features, we can create much
-models on a much denser domain, which gives many advantages in
-enabling more interpolation.
+We set the aim of decreasing \(\mathcal{O}(n^3)\) computational
+expense of GPR by \approx{}10 times. So, we aim to take 20 highly
+correlated [[gls:ft][features]] (slightly less than one half the number used by
+prior models) from these SIS subspaces. We expect this to solve the
+problems inherent to the raw [[Featurization of Chemistries]]
+
+Computing [[ACRshort:gpr][GPR]] in conjunction with SIS features, we can create
+extrapolative models on a much more continuous domain.
 
 In particular, using [[ACRshort:gpr][GPR]] with [[ACRshort:sisso][SISSO]] also leverages the SIS features
 while obtaining uncertainty estimates, which is helpful for our
 inverse design ambitions.
-** model introspection
-*** linear models
-To illustrate, the coefficients that define the linear combination do
-not find much use in X-site elements. however, the B site elements
-contribute much more to the band gap on average, which is consistent
-with our physical understanding.
 
-Curiously, A site elements also prove to be relevant.
-
-Likewise, with respect to the generality measure conducted earlier, it
-seems the presence of individual elements is far more predictive of
-the total band gap than mix status. This would explain why X-site and
-A-site alloys are sufficient to predict the band gaps of B-site alloys,
-despite those groups containing no B-site alloys themselves, they do
-contain a representative sample of B-site elements.
-*** 
-** Screening
-:PROPERTIES:
-:CUSTOM_ID: screeding
-:CLASS: unnumbered
-:END:
-A set of high throughput screening criteria has been previously
-developed[[cite:mannodi-kanakkithodi-2022-data-driven]]. We apply the
-band gap criterion to the predictions made the by these enhanced models.
-
-*** TODO Compare
-screening results to the previous batch produced by older models.
-
-** Summary
-:PROPERTIES:
-:CUSTOM_ID: summary
-:CLASS: unnumbered
-:END:
-
-GPR performs best and
-
+** TODO Best Models on Engineered Domain
 ** CANCELED COMMENT Genetic algorithm results
 :STATUSLOG:
 - State "CANCELED"   from              [2022-09-11 Sun 19:28] \\
