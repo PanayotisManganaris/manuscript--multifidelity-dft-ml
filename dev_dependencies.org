@@ -61,7 +61,7 @@
 :results:
 :end:
 
-* feature engineering
+* basic feature engineering
 #+begin_src jupyter-python
   from sklearn.impute import SimpleImputer
   from sklearn.preprocessing import OrdinalEncoder, Normalizer, StandardScaler
@@ -89,7 +89,14 @@
 
 * model eval
 #+begin_src jupyter-python
-  from sklearn.metrics import make_scorer, mean_squared_error, r2_score, explained_variance_score, max_error
+  from sklearn.metrics import (
+      make_scorer,
+      mean_squared_error,
+      r2_score,
+      explained_variance_score,
+      max_error,
+      mean_absolute_error,
+  )
   import joblib
   import shap
 #+end_src
