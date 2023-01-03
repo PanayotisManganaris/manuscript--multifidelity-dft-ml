@@ -589,7 +589,7 @@ parameters. These models are finally validated against the test sets
 originally split off from the sample in both their extrapolative
 ability and consistency across groups.
 
-This procedure in demonstrated via an online Notebook by
+This procedure in demonstrated in an online notebook by
 [[citet:&manganaris-2022-mrs-comput]] hosted on the Purdue NanoHUB.
 
 ** DONE Feature Engineering
