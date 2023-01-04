@@ -914,7 +914,10 @@ strongly with band gap are illustrated in figure ref:fig:rpear.
 [[file:./.ob-jupyter/bee19f4a89b8480a3d67cc87af798e711d963581.svg]]
 :end:
 
-** TODO SISSO Model and Incidental Engineered Features
+** DONE SISSO Model and Incidental Engineered Features
+:STATUSLOG:
+- State "DONE"       from "TODO"       [2023-01-04 Wed 07:35]
+:END:
 The [[Acrfull:sisso][Sure Independence Screening and Sparsifying Operator (SISSO)]]
 [[cite:&ouyang-2018-sisso;&ghiringhelli-2017-learn-physic]] is a specific
 combination of multiple data mining techniques chained together
@@ -939,14 +942,14 @@ bg\mbox{ [eV]} = 1.752075117(&(X;\mbox{Electronegativity}*A;\mbox{Heat of Fusion
 \end{align}
 
 #+CAPTION: label:tbl:rawLoTscores RMSE of models on raw domain calculated per LoT subset
-| Score Categories  |      GPR |      RFR | Linear OLS | SISSO |
-|-------------------+----------+----------+------------+-------|
-| rmse              | 0.258387 | 0.134671 |   0.499558 |       |
-| rmse EXP          | 0.157147 | 0.188727 |   0.307186 |       |
-| rmse PBE          | 0.204187 | 0.102778 |   0.472430 |       |
-| rmse HSE          | 0.337971 | 0.170726 |   0.558077 |       |
-| rmse HSE(SOC)     | 0.275642 | 0.102896 |   0.535087 |       |
-| rmse HSE-PBE(SOC) | 0.245003 | 0.162380 |   0.466364 |       |
+| Score Categories  |      GPR |      RFR | Linear OLS |    SISSO |
+|-------------------+----------+----------+------------+----------|
+| rmse              | 0.258387 | 0.134671 |   0.499558 | 0.474754 |
+| rmse EXP          | 0.157147 | 0.188727 |   0.307186 | 0.330080 |
+| rmse PBE          | 0.204187 | 0.102778 |   0.472430 | 0.395827 |
+| rmse HSE          | 0.337971 | 0.170726 |   0.558077 | 0.519706 |
+| rmse HSE(SOC)     | 0.275642 | 0.102896 |   0.535087 | 0.572644 |
+| rmse HSE-PBE(SOC) | 0.245003 | 0.162380 |   0.466364 | 0.470758 |
 
 Computing and combining more than 3 SIS [[gls:ft][features]] is not rewarding of
 the computational expense. Residuals are increasingly uncorrelated
