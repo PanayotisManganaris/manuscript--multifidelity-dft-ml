@@ -634,10 +634,11 @@ model
 
 [[acrshort:sisso][SISSO]] is run for our dataset on the same partitioning scheme used by
 the previous models via an scikit-learn
-compliant[[cite:&buitinck-2013-api]] interface[fn:5]. Additionally, the
-algorithm is informed of [[gls:ft][features]] units so that it is restricted to
-meaningful linear combinations. SIS [[gls:ft][features]] complexity is restricted
-to a maximum of 3 operations primarily to encourage parsimonious
+compliant[[cite:&buitinck-2013-api]] interface[fn:5] extensively modified
+from the original Matgenix[fn:6] code. Additionally, the algorithm is
+informed of [[gls:ft][features]] units so that it is restricted to meaningful
+linear combinations. SIS [[gls:ft][features]] complexity is restricted to a
+maximum of 3 operations primarily to encourage parsimonious
 descriptions. The available operation set is outlined in table
 ref:tbl:ops.
 
@@ -1419,6 +1420,7 @@ comparable across partition size
 
 * Footnotes
 
+[fn:6]https://github.com/Matgenix/pysisso 
 [fn:5]https://github.com/PanayotisManganaris/pysisso
 [fn:4]https://github.com/PanayotisManganaris/yogi 
 [fn:3]https://github.com/PanayotisManganaris/cmcl
