@@ -1,0 +1,1750 @@
+#+TITLE: Optimized GPR Band Gap Models based on SIS Features
+#+AUTHOR: Panayotis Manganaris
+#+EMAIL: pmangana@purdue.edu
+#+PROPERTY: header-args :session mrg :kernel mrg :async yes :pandoc org :results raw drawer
+* TODO checklist
+tick each model exhaustively optimized and saved
+- [ ] raw domain
+  - [ ] domain MTL
+    - [ ] "parallel" fidelity ohe
+    - [ ] "sequential" fidelity feed forward
+- [-] SIS domain
+  - [-] co-domain MTL
+  - [-] domain MTL
+    - [X] "parallel" fidelity ohe
+    - [ ] "sequential" fidelity feed forward
+
+* Dependencies
+#+INCLUDE: /home/panos/Documents/manuscripts/DFT+ML+feature_engineering/dev_dependencies.org
+#+begin_src jupyter-python
+  # predictors
+  sys.path.append(os.path.expanduser("~/src/pysisso"))
+
+  from sklearn.gaussian_process import GaussianProcessRegressor
+  from sklearn.gaussian_process import kernels as K
+  import pysisso.sklearn #SISTransformer
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* Load Data
+#+INCLUDE: /home/panos/Documents/manuscripts/DFT+ML+feature_engineering/load_full_domain.org
+** focus on target 
+Define generic X and Y here. Optionally pick the domain on which to
+model a fully defined co-domain
+- mm :: all features
+- mp :: prop features
+- mc :: comp features
+#+begin_src jupyter-python
+  target=['bg_eV']
+  Y = my.dropna(subset=target)
+  # use mm, or mc/mp + categorical features
+  X = mm.reindex(index=Y.index)
+  # X = mm[[mc.columns.to_list + ["LoT"]]]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* Scoring Scheme
+** prepare subset scoring weights and ordinal group labels
+*** score on mixtype
+#+begin_src jupyter-python
+  mixweight = pd.get_dummies(Y.mix)
+  mixcat = pd.Series(OrdinalEncoder().fit_transform(Y.mix.values.reshape(-1, 1)).reshape(-1),
+                     index=Y.index).astype(int)
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+*** score on level of theory
+#+begin_src jupyter-python
+  LoTweight = pd.get_dummies(Y.LoT)
+  LoTcat = pd.Series(OrdinalEncoder().fit_transform(Y.LoT.values.reshape(-1, 1)).reshape(-1),
+                     index=Y.index).astype(int)
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+** Define Scoring Metrics
+*** score on mixtype
+#+begin_src jupyter-python
+  index_mse = PSA(mean_squared_error).score
+  mix_scorings = {'r2': make_scorer(r2_score),
+                  'ev': make_scorer(explained_variance_score),
+                  'maxerr': make_scorer(max_error, greater_is_better=False),
+                  'rmse': make_scorer(mean_squared_error, greater_is_better=False, squared=False),
+                  'rmse_A': make_scorer(index_mse, greater_is_better=False,
+                                        squared=False, sample_weight=mixweight.A),
+                  'rmse_B': make_scorer(index_mse, greater_is_better=False,
+                                        squared=False, sample_weight=mixweight.B),
+                  'rmse_X': make_scorer(index_mse, greater_is_better=False,
+                                        squared=False, sample_weight=mixweight.X),
+                  'rmse_pure': make_scorer(index_mse, greater_is_better=False,
+                                           squared=False, sample_weight=mixweight.pure),}
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+*** score on level of theory
+#+begin_src jupyter-python
+  lot_scorings = {'r2': make_scorer(r2_score),
+                  'ev': make_scorer(explained_variance_score),
+                  'maxerr': make_scorer(max_error, greater_is_better=False),
+                  'rmse': make_scorer(mean_squared_error, greater_is_better=False, squared=False),
+                  'rmse_EXP': make_scorer(index_mse, greater_is_better=False,
+                                          squared=False, sample_weight=LoTweight['EXP']),
+                  'rmse_PBE': make_scorer(index_mse, greater_is_better=False,
+                                          squared=False, sample_weight=LoTweight['PBErel']),
+                  'rmse_HSE': make_scorer(index_mse, greater_is_better=False,
+                                          squared=False, sample_weight=LoTweight['HSErel']),
+                  'rmse_HSE(SOC)': make_scorer(index_mse, greater_is_better=False,
+                                          squared=False, sample_weight=LoTweight['HSErel(SOC)']),
+                  'rmse_HSE-PBE(SOC)': make_scorer(index_mse, greater_is_better=False,
+                                          squared=False, sample_weight=LoTweight['HSE-PBE(SOC)']),}
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* Make Dedicated Test Train Split
+#+begin_src jupyter-python
+  sss = StratifiedShuffleSplit(n_splits=1, train_size=0.8, random_state=None)
+  train_idx, test_idx = next(sss.split(X, LoTcat)) #stratify split by LoT categories
+  X_tr, X_ts = X.iloc[train_idx], X.iloc[test_idx]
+  Y_tr, Y_ts = Y.iloc[train_idx], Y.iloc[test_idx]
+  LoTcat_tr, LoTcat_ts = LoTcat.iloc[train_idx], LoTcat.iloc[test_idx]
+  mixcat_tr, mixcat_ts = mixcat.iloc[train_idx], mixcat.iloc[test_idx]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* Import Trained Model
+load if available, then skip *Make Model*. Available suffixes:
+- [X] t :: total feature space
+- [ ] c :: comp feature space
+- [ ] p :: prop feature space
+- [ ] s :: engineered superspace
+
+Never load joblib/pickle files that you do not trust, they can execute
+arbitrary code on your computer.
+
+#+begin_src jupyter-python
+  cpipe = joblib.load("./Models/gpr_e_bg.joblib")
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* Make Model
+** Make Pipeline
+#+begin_src jupyter-python
+  # composition vectors for preprocessing
+  comp_features = mc.columns
+
+  # site-avg properties for preprocessing
+  prop_features = mp.columns
+
+  # categorical properties for preprocessing
+  cat_features = mm.select_dtypes('object').columns
+
+  # define preprocessing
+  fillna = SimpleImputer(strategy="constant", fill_value=0.0)
+  mkratio = Normalizer(norm='l1')
+  mknormal = StandardScaler()
+  mkbound = MinMaxScaler(feature_range=(0,1), clip=False) #not statistical, should work for anything
+
+  comp_transformer = mkpipe(fillna, mkratio, mkbound)
+  prop_transformer = mkpipe(fillna, mknormal, mkbound)
+  cat_transformer = ohe(handle_unknown="ignore")
+
+  preprocessor = colt(
+      transformers=[
+          ("comp", comp_transformer, comp_features),
+          ("prop", prop_transformer, prop_features),
+          ("cat", cat_transformer, cat_features),
+      ]
+  )
+
+  cpipe = mkpipe(preprocessor, GaussianProcessRegressor())
+#+end_src
+
+** Import, initialize, and insert SISTransformer
+#+begin_src jupyter-python
+  #making feature names compatible with SISSO run
+  cpipe[:-1].fit(X_tr)
+  tnames = pd.Series(
+      cpipe[:-1].get_feature_names_out()
+  ).str.replace(" ", "").str.replace("'","").str[4:].str.replace(
+      "LoT", "" #remove spaces, useless characters
+  ).str[2:].apply(str).str.replace(",",";").str.replace(
+      r'\(', "", regex=True #remove parenthesis to avoid Keyerrors on predict
+  ).str.replace(r'\)', "", regex=True).str.replace(
+      "/", "per" #remove python math operations (also no colons)
+  ).str.replace("-", "")
+#+end_src
+  
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  sissopipe = joblib.load("./Models/sisso_bg.joblib")
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+  
+#+begin_src jupyter-python
+  SIS = pysisso.sklearn.SISTransformer(
+      sis_out = sissopipe[-1].sis_out,
+      columns = tnames.to_list()
+  )
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  cpipe.steps.insert(-1, ('sis', SIS))
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  with open('./Models/GPR_e.html', 'w') as f:  
+      f.write(estimator_html_repr(cpipe))
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+** Rational Training Validation
+*Notice that the error metrics are negated so that, consistently with*
+*the R^2 and ev scores, the greater the number, the better the model*
+*performs.*
+
+** Learning Curves -- Using Deterministically Random Cross Validation
+#+begin_src jupyter-python
+  kf_lc = KFold(n_splits=10, shuffle=True, random_state=111)
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  with joblib.parallel_backend('multiprocessing'):
+    LC = pvc(learning_curve, cpipe, X_tr, Y_tr[target].iloc[:,0], #ravel 1D target
+             train_sizes=np.linspace(0.1, 1.0, 10), cv=kf_lc,
+             scoring=lot_scorings) #change scorings as needed
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  lc = LC.melt(id_vars=["partition"], ignore_index=False).reset_index()
+  lc = lc.groupby(['score','partition','train_sizes']).aggregate({'value':['mean','std']}).reset_index()
+  lc.columns = ["".join(column) for column in lc.columns.to_flat_index()]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+  
+#+begin_src jupyter-python :file ../LearningCurves/gpr_e_bg.png
+  # mask = lc.score.str.contains('rmse|r2')
+  # lc = lc[mask]
+  p = px.line(lc, x='train_sizes', y='valuemean', error_y='valuestd',
+              facet_col='score', facet_col_wrap=3, color='partition',
+              height=600, width=900, 
+              facet_row_spacing=0.06,
+              facet_col_spacing=0.05)
+  p.update_layout(font_family='arial narrow', font_size=15,
+                  hovermode='x')
+  p.update_yaxes(matches=None, showticklabels=True)
+  # p.update_xaxes(showticklabels=True, row=2, col=3)
+  p.for_each_yaxis(lambda a: a.update(title_text=a.title.text[:-4] if a.title.text else None))
+  p.for_each_xaxis(lambda a: a.update(title_text=a.title.text.replace("_", " ") if a.title.text else None))
+  p.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1].replace("_", " ")))
+  p.show(renderer='svg')
+#+end_src
+
+#+RESULTS:
+:results:
+[[file:../LearningCurves/gpr_t_bg.png]]
+:end:
+
+It appears that fold cross-validation is sufficient
+- use points, validating with the compliment
+- RF validation scores continue to rise as the partition size grows
+- Random Forest generality increases with more exposure
+- Equivalently, an insufficiently experienced random forest is biased towards what it has seen.
+
+#+begin_src jupyter-python
+  p.write_html('./LearningCurves/gpr_e_bg.html', include_plotlyjs='../plotly.min.js')
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+** Measure baseline estimator's ability to extrapolate
+on this domain get scores per:
+*** LoT on LoT group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=5), lot_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], LoTcat_tr, Y_tr.LoT,
+                  X_ts, Y_ts[target].iloc[:,0], LoTcat_ts, Y_ts.LoT)
+#+end_src
+
+#+RESULTS:
+:results:
+|        | PBE      | HSE      | HSC      | PHC      | EXP       | partition  |
+|--------+----------+----------+----------+----------+-----------+------------|
+| r2     | 0.20947  | 0.79552  | 0.85704  | 0.81573  | -18.93556 | validation |
+| ev     | 0.65565  | 0.90576  | 0.85864  | 0.84012  | -18.90310 | validation |
+| maxerr | -4.55694 | -2.35134 | -2.95134 | -3.74017 | -5.15519  | validation |
+| rmse   | -1.13017 | -0.61047 | -0.55754 | -0.71053 | -1.99986  | validation |
+| r2     | 0.27160  | 0.79455  | 0.83266  | 0.84348  | -37.50145 | test       |
+| ev     | 0.78051  | 0.88845  | 0.83623  | 0.86123  | -37.40387 | test       |
+| maxerr | -2.37503 | -2.71054 | -3.19939 | -1.97140 | -5.40776  | test       |
+| rmse   | -1.11056 | -0.63168 | -0.59303 | -0.60966 | -2.01399  | test       |
+:end:
+
+- lot extrapolation
+- lot scoring
+
+*** LoT on mix group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=4), lot_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], mixcat_tr, Y_tr.mix,
+                  X_ts, Y_ts[target].iloc[:,0], mixcat_ts, Y_ts.mix)
+#+end_src
+
+#+RESULTS:
+:results:
+|          | B        | pure      | X        | A        | partition  |
+|----------+----------+-----------+----------+----------+------------|
+| r2       | 0.55137  | -0.81086  | 0.55575  | 0.61489  | validation |
+| ev       | 0.73771  | -0.52873  | 0.58466  | 0.63752  | validation |
+| maxerr   | -2.56809 | -19.84571 | -6.73606 | -6.07827 | validation |
+| rmse     | -0.75809 | -2.41264  | -0.89267 | -1.04670 | validation |
+| EXP_rmse | -0.34625 | -2.91481  | -0.17820 | -0.12178 | validation |
+| HSE_rmse | -0.82799 | -2.37225  | -0.95265 | -1.27487 | validation |
+| PBE_rmse | -0.47905 | -3.06238  | -0.91827 | -0.98055 | validation |
+| HSC_rmse | -0.96753 | -2.34197  | -1.07013 | -1.12245 | validation |
+| r2       | 0.67741  | 0.22739   | 0.87226  | 0.89785  | test       |
+| ev       | 0.81098  | 0.44456   | 0.87229  | 0.90659  | test       |
+| maxerr   | -2.10443 | -7.71146  | -1.98868 | -1.27977 | test       |
+| rmse     | -0.70748 | -1.53151  | -0.47829 | -0.43320 | test       |
+| EXP_rmse | -0.31598 | -0.21822  | -0.09742 | -0.01999 | test       |
+| HSE_rmse | -0.89542 | -2.17408  | -1.42659 | -0.28036 | test       |
+| PBE_rmse | -0.49256 | -1.44331  | -0.34446 | -0.38678 | test       |
+| HSC_rmse | -0.78809 | -1.19178  | -0.41856 | -0.84446 | test       |
+:end:
+
+- mix extrapolation
+- lot scoring
+- generally better than 0.5 eV rmse
+- B alloys hard to predict from other alloy types
+
+*** mix on mix group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=4), mix_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], mixcat_tr, Y_tr.mix,
+                  X_ts, Y_ts[target].iloc[:,0], mixcat_ts, Y_ts.mix)
+#+end_src
+
+#+RESULTS:
+:results:
+|        | B        | pure      | X        | A        | partition  |
+|--------+----------+-----------+----------+----------+------------|
+| r2     | 0.55137  | -0.81086  | 0.55575  | 0.61489  | validation |
+| ev     | 0.73771  | -0.52873  | 0.58466  | 0.63752  | validation |
+| maxerr | -2.56809 | -19.84571 | -6.73606 | -6.07827 | validation |
+| rmse   | -0.75809 | -2.41264  | -0.89267 | -1.04670 | validation |
+| r2     | 0.67741  | 0.22739   | 0.87226  | 0.89785  | test       |
+| ev     | 0.81098  | 0.44456   | 0.87229  | 0.90659  | test       |
+| maxerr | -2.10443 | -7.71146  | -1.98868 | -1.27977 | test       |
+| rmse   | -0.70748 | -1.53151  | -0.47829 | -0.43320 | test       |
+:end:
+
+- mix extrapolation
+- mix scoring
+
+*** mix on LoT group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=5), mix_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], LoTcat_tr, Y_tr.LoT,
+                  X_ts, Y_ts[target].iloc[:,0], LoTcat_ts, Y_ts.LoT)
+#+end_src
+
+#+RESULTS:
+:results:
+|           | PBE      | HSE      | HSC      | PHC      | EXP       | partition  |
+|-----------+----------+----------+----------+----------+-----------+------------|
+| r2        | 0.20947  | 0.79552  | 0.85704  | 0.81573  | -18.93556 | validation |
+| ev        | 0.65565  | 0.90576  | 0.85864  | 0.84012  | -18.90310 | validation |
+| maxerr    | -4.55694 | -2.35134 | -2.95134 | -3.74017 | -5.15519  | validation |
+| rmse      | -1.13017 | -0.61047 | -0.55754 | -0.71053 | -1.99986  | validation |
+| A_rmse    | -1.13818 | -0.55673 | -0.26506 | -0.47596 | -1.95274  | validation |
+| B_rmse    | -0.93635 | -0.46874 | -0.49035 | -0.63865 | -3.23108  | validation |
+| X_rmse    | -1.21848 | -0.86694 | -0.79506 | -0.81868 | -0.86207  | validation |
+| Pure_rmse | -1.23660 | -0.67397 | -0.63201 | -0.81135 | -2.03479  | validation |
+| r2        | 0.27160  | 0.79455  | 0.83266  | 0.84348  | -37.50145 | test       |
+| ev        | 0.78051  | 0.88845  | 0.83623  | 0.86123  | -37.40387 | test       |
+| maxerr    | -2.37503 | -2.71054 | -3.19939 | -1.97140 | -5.40776  | test       |
+| rmse      | -1.11056 | -0.63168 | -0.59303 | -0.60966 | -2.01399  | test       |
+| A_rmse    | -1.07976 | -0.68579 | -0.54961 | -0.37188 | -2.04180  | test       |
+| B_rmse    | -0.99200 | -0.46040 | -0.77102 | -0.35345 | -3.85099  | test       |
+| X_rmse    | -1.42247 | -2.09102 | -0.46696 | -1.19479 | -0.68389  | test       |
+| Pure_rmse | -1.02925 | -0.55760 | -0.35116 | -0.57747 | -0.58112  | test       |
+:end:
+
+- horrible lot extrapolations 
+- mix scoring
+
+** Discuss Model Optimization
+Use some mechanism to Optimize Hyper-parameters. Scikit-learn's
+Gaussian Process regression is parametrized almost entirely by a
+single covariance function, so a grid search is relatively easy.
+
+** HPO Loop
+*** -- Iteratively Optimize Hyperparameters
+**** 1. construct original Hyper-parameter Space
+#+begin_src jupyter-python 
+  ker_smooth = K.RBF(1.0, (1e-3, 1e3)) + K.ConstantKernel()
+  ker_smooth_lin = K.RBF(1.0, (1e-3, 1e3)) * K.DotProduct(sigma_0_bounds=(1e-8,1e0)) + K.ConstantKernel()
+  ker_rq = K.RationalQuadratic(1, 1, (1e-5, 1e5), (1e-5, 1e5)) + K.ConstantKernel()
+  #ker_expsin = K.ExpSineSquared(1.0, 5.0, (1e-3, 1e3), (1e-2, 1e1)) + K.ConstantKernel()
+  ker_mat32 = K.Matern(1.0, (1e-5, 1e5), nu=1.5) + K.ConstantKernel()
+  ker_mat32_lin = K.Matern(1.0, (1e-4, 1e4), nu=1.5) * K.DotProduct(sigma_0_bounds=(1e-8,1e0)) + K.ConstantKernel()
+  ker_exp = K.Matern(1.0, (1e-5, 1e5), nu=0.5) + K.ConstantKernel()
+  ker_exp_lin = K.Matern(1.0, (1e-5, 1e5), nu=0.5) * K.DotProduct(sigma_0_bounds=(1e-8,1e0)) + K.ConstantKernel()
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  grid = [
+      {'columntransformer__comp__normalizer__norm': ['l1', 'l2', 'max'],
+       'gaussianprocessregressor__kernel': [ker_smooth, ker_smooth_lin, ker_rq, ker_mat32, ker_mat32_lin, ker_exp, ker_exp_lin],
+       'gaussianprocessregressor__alpha': [0.05, 0.1, 0.15],
+       'gaussianprocessregressor__n_restarts_optimizer': [0],
+       'gaussianprocessregressor__normalize_y': [False],
+       'gaussianprocessregressor__optimizer': ['fmin_l_bfgs_b'],
+       'gaussianprocessregressor__random_state': [None]
+       },
+  ]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+**** DONE 2.1 Mix meta estimator
+:STATUSLOG:
+- State "DONE"       from "TODO"       [2023-01-04 Wed 10:12]
+:END:
+initially, only 3 fold validation is used to save on computation time
+- use =lot_scorings= to examine parameters that improve ability to extrapolate between fidelities
+- use =mix_scorings= to improve ability to predict site-alloy properties 
+#+begin_src jupyter-python
+  cgs = gsCV(estimator=cpipe,
+              param_grid=grid,
+              cv=3, verbose=1, scoring=mix_scorings, refit="r2", return_train_score=True)
+
+  with joblib.parallel_backend('multiprocessing'):
+      cgs.fit(X_tr, Y_tr[target].iloc[:,0])
+#+end_src
+
+#+RESULTS:
+:results:
+: Fitting 3 folds for each of 63 candidates, totalling 189 fits
+: /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+: 
+: The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+: 
+:end:
+
+- Time :: Fitting 3 folds for each of 10368 candidates, totalling 31104 fits
+  - about 45 minutes to fit with acceleration
+  - <2 hours without
+- Next :: Determine next Grid Space to explore using =mix_scorings=
+- Objective :: improve ability to generalize between alloy types
+***** Equal Weights In Summary
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+|                                                | space_0                                           | entropy_0 | scores_0                                   | next_0                                            |
+|------------------------------------------------+---------------------------------------------------+-----------+--------------------------------------------+---------------------------------------------------|
+| columntransformer__comp__normalizer__norm      | [l1, l2, max]                                     | 1.076819  | [6.77, 15.73, 8.04]                        | [l2]                                              |
+| gaussianprocessregressor__kernel               | [RBF(length_scale=1) + 1**2, RBF(length_scale=... | 1.672480  | [2.18, 13.83, 0.94, 1.76, 9.57, 0.0, 2.26] | [RBF(length_scale=1) * DotProduct(sigma_0=1) +... |
+| gaussianprocessregressor__alpha                | [0.05, 0.1, 0.15]                                 | 0.838570  | [24.9, 4.29, 1.34]                         | [0.05]                                            |
+| gaussianprocessregressor__n_restarts_optimizer | [0]                                               | -0.000000 | NaN                                        | [0]                                               |
+| gaussianprocessregressor__normalize_y          | [False]                                           | -0.000000 | NaN                                        | [False]                                           |
+| gaussianprocessregressor__optimizer            | [fmin_l_bfgs_b]                                   | -0.000000 | NaN                                        | [fmin_l_bfgs_b]                                   |
+| gaussianprocessregressor__random_state         | [None]                                            | -0.000000 | NaN                                        | [None]                                            |
+:end:
+
+***** Double Weighting B scores
+#+begin_src jupyter-python
+  list(map(lambda t: t[0], mix_scorings.items()))
+#+end_src
+
+#+RESULTS:
+:results:
+| r2 | ev | maxerr | rmse | rmse_A | rmse_B | rmse_X | rmse_pure |
+:end:
+
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,2,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+|                                                | space_0                                           | entropy_0 | scores_0                                   | next_0                                            |
+|------------------------------------------------+---------------------------------------------------+-----------+--------------------------------------------+---------------------------------------------------|
+| columntransformer__comp__normalizer__norm      | [l1, l2, max]                                     | 1.076819  | [8.55, 16.91, 8.79]                        | [l2]                                              |
+| gaussianprocessregressor__kernel               | [RBF(length_scale=1) + 1**2, RBF(length_scale=... | 1.672480  | [2.44, 15.93, 1.02, 1.94, 10.4, 0.0, 2.53] | [RBF(length_scale=1) * DotProduct(sigma_0=1) +... |
+| gaussianprocessregressor__alpha                | [0.05, 0.1, 0.15]                                 | 0.838570  | [28.14, 4.7, 1.41]                         | [0.05]                                            |
+| gaussianprocessregressor__n_restarts_optimizer | [0]                                               | -0.000000 | NaN                                        | [0]                                               |
+| gaussianprocessregressor__normalize_y          | [False]                                           | -0.000000 | NaN                                        | [False]                                           |
+| gaussianprocessregressor__optimizer            | [fmin_l_bfgs_b]                                   | -0.000000 | NaN                                        | [fmin_l_bfgs_b]                                   |
+| gaussianprocessregressor__random_state         | [None]                                            | -0.000000 | NaN                                        | [None]                                            |
+:end:
+
+**** DONE 2.2 LoT meta estimator
+:STATUSLOG:
+- State "DONE"       from "TODO"       [2023-01-04 Wed 10:20]
+:END:
+#+begin_src jupyter-python
+  cgs = gsCV(estimator=cpipe,
+              param_grid=grid,
+              cv=3, verbose=1, scoring=lot_scorings, refit="r2", return_train_score=True)
+
+  with joblib.parallel_backend('multiprocessing'):
+      cgs.fit(X_tr, Y_tr[target].iloc[:,0])
+#+end_src
+
+#+RESULTS:
+:results:
+: Fitting 3 folds for each of 63 candidates, totalling 189 fits
+: /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+: 
+: The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+: 
+:end:
+
+***** Equal Weights In Summary
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+|                                                | space_0                                           | entropy_0 | scores_0                                    | next_0                                            |
+|------------------------------------------------+---------------------------------------------------+-----------+---------------------------------------------+---------------------------------------------------|
+| columntransformer__comp__normalizer__norm      | [l1, l2, max]                                     | 1.087566  | [8.03, 17.15, 9.06]                         | [l2]                                              |
+| gaussianprocessregressor__kernel               | [RBF(length_scale=1) + 1**2, RBF(length_scale=... | 1.672480  | [2.55, 14.67, 1.63, 2.54, 11.02, 0.0, 1.83] | [RBF(length_scale=1) * DotProduct(sigma_0=1) +... |
+| gaussianprocessregressor__alpha                | [0.05, 0.1, 0.15]                                 | 0.838570  | [27.99, 4.88, 1.36]                         | [0.05]                                            |
+| gaussianprocessregressor__n_restarts_optimizer | [0]                                               | -0.000000 | NaN                                         | [0]                                               |
+| gaussianprocessregressor__normalize_y          | [False]                                           | -0.000000 | NaN                                         | [False]                                           |
+| gaussianprocessregressor__optimizer            | [fmin_l_bfgs_b]                                   | -0.000000 | NaN                                         | [fmin_l_bfgs_b]                                   |
+| gaussianprocessregressor__random_state         | [None]                                            | -0.000000 | NaN                                         | [None]                                            |
+:end:
+
+***** Double Weighting EXP scores
+#+begin_src jupyter-python
+  list(map(lambda t: t[0], lot_scorings.items()))
+#+end_src
+
+#+RESULTS:
+:results:
+| r2 | ev | maxerr | rmse | rmse_EXP | rmse_PBE | rmse_HSE | rmse_HSE(SOC) | rmse_HSE-PBE(SOC) |
+:end:
+
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,2,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+|                                                | space_0                                           | entropy_0 | scores_0                                   | next_0                                            |
+|------------------------------------------------+---------------------------------------------------+-----------+--------------------------------------------+---------------------------------------------------|
+| columntransformer__comp__normalizer__norm      | [l1, l2, max]                                     | 1.087566  | [8.47, 17.88, 11.54]                       | [l2]                                              |
+| gaussianprocessregressor__kernel               | [RBF(length_scale=1) + 1**2, RBF(length_scale=... | 1.672480  | [3.31, 15.57, 1.82, 3.01, 12.3, 0.0, 1.88] | [RBF(length_scale=1) * DotProduct(sigma_0=1) +... |
+| gaussianprocessregressor__alpha                | [0.05, 0.1, 0.15]                                 | 0.838570  | [30.93, 5.49, 1.47]                        | [0.05]                                            |
+| gaussianprocessregressor__n_restarts_optimizer | [0]                                               | -0.000000 | NaN                                        | [0]                                               |
+| gaussianprocessregressor__normalize_y          | [False]                                           | -0.000000 | NaN                                        | [False]                                           |
+| gaussianprocessregressor__optimizer            | [fmin_l_bfgs_b]                                   | -0.000000 | NaN                                        | [fmin_l_bfgs_b]                                   |
+| gaussianprocessregressor__random_state         | [None]                                            | -0.000000 | NaN                                        | [None]                                            |
+:end:
+*** -- Iteratively Optimize Hyperparameters
+**** 1. construct original Hyper-parameter Space
+#+begin_src jupyter-python
+  grid = [
+      {'columntransformer__comp__normalizer__norm': ['l2'],
+       'gaussianprocessregressor__kernel': [ker_smooth_lin, ker_mat32_lin],
+       'gaussianprocessregressor__alpha': [0.05],
+       'gaussianprocessregressor__n_restarts_optimizer': [0],
+       'gaussianprocessregressor__normalize_y': [False],
+       'gaussianprocessregressor__optimizer': ['fmin_l_bfgs_b'],
+       'gaussianprocessregressor__random_state': [None]
+       },
+  ]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+**** TODO 2.1 Mix meta estimator
+initially, only 3 fold validation is used to save on computation time
+- use =lot_scorings= to examine parameters that improve ability to extrapolate between fidelities
+- use =mix_scorings= to improve ability to predict site-alloy properties 
+#+begin_src jupyter-python
+  cgs = gsCV(estimator=cpipe,
+              param_grid=grid,
+              cv=3, verbose=1, scoring=mix_scorings, refit="r2", return_train_score=True)
+
+  with joblib.parallel_backend('multiprocessing'):
+      cgs.fit(X_tr, Y_tr[target].iloc[:,0])
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+- Time :: Fitting 3 folds for each of 10368 candidates, totalling 31104 fits
+  - about 45 minutes to fit with acceleration
+  - <2 hours without
+- Next :: Determine next Grid Space to explore using =mix_scorings=
+- Objective :: improve ability to generalize between alloy types
+***** Equal Weights In Summary
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+***** Double Weighting B scores
+#+begin_src jupyter-python
+  list(map(lambda t: t[0], mix_scorings.items()))
+#+end_src
+
+#+RESULTS:
+:results:
+| r2 | ev | maxerr | rmse | rmse_A | rmse_B | rmse_X | rmse_pure |
+:end:
+
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,2,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+**** DONE 2.2 LoT meta estimator
+:STATUSLOG:
+- State "DONE"       from              [2023-01-04 Wed 10:23]
+:END:
+#+begin_src jupyter-python
+  cgs = gsCV(estimator=cpipe,
+              param_grid=grid,
+              cv=3, verbose=1, scoring=lot_scorings, refit="r2", return_train_score=True)
+
+  with joblib.parallel_backend('multiprocessing'):
+      cgs.fit(X_tr, Y_tr[target].iloc[:,0])
+#+end_src
+
+#+RESULTS:
+:results:
+: Fitting 3 folds for each of 2 candidates, totalling 6 fits
+: /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+: 
+: The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+: 
+:end:
+
+***** Equal Weights In Summary
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+|                                                | space_0                                           | entropy_0 | scores_0   | next_0                                            |
+|------------------------------------------------+---------------------------------------------------+-----------+------------+---------------------------------------------------|
+| columntransformer__comp__normalizer__norm      | [l2]                                              | -0.000000 | NaN        | [l2]                                              |
+| gaussianprocessregressor__kernel               | [RBF(length_scale=1) * DotProduct(sigma_0=1) +... | 0.693147  | [7.5, 7.0] | [RBF(length_scale=1) * DotProduct(sigma_0=1) +... |
+| gaussianprocessregressor__alpha                | [0.05]                                            | -0.000000 | NaN        | [0.05]                                            |
+| gaussianprocessregressor__n_restarts_optimizer | [0]                                               | -0.000000 | NaN        | [0]                                               |
+| gaussianprocessregressor__normalize_y          | [False]                                           | -0.000000 | NaN        | [False]                                           |
+| gaussianprocessregressor__optimizer            | [fmin_l_bfgs_b]                                   | -0.000000 | NaN        | [fmin_l_bfgs_b]                                   |
+| gaussianprocessregressor__random_state         | [None]                                            | -0.000000 | NaN        | [None]                                            |
+:end:
+
+***** Double Weighting EXP scores
+#+begin_src jupyter-python
+  list(map(lambda t: t[0], lot_scorings.items()))
+#+end_src
+
+#+RESULTS:
+:results:
+| r2 | ev | maxerr | rmse | rmse_EXP | rmse_PBE | rmse_HSE | rmse_HSE(SOC) | rmse_HSE-PBE(SOC) |
+:end:
+
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,2,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+|                                                | space_0                                           | entropy_0 | scores_0   | next_0                                            |
+|------------------------------------------------+---------------------------------------------------+-----------+------------+---------------------------------------------------|
+| columntransformer__comp__normalizer__norm      | [l2]                                              | -0.000000 | NaN        | [l2]                                              |
+| gaussianprocessregressor__kernel               | [RBF(length_scale=1) * DotProduct(sigma_0=1) +... | 0.693147  | [8.0, 8.0] | [RBF(length_scale=1) * DotProduct(sigma_0=1) +... |
+| gaussianprocessregressor__alpha                | [0.05]                                            | -0.000000 | NaN        | [0.05]                                            |
+| gaussianprocessregressor__n_restarts_optimizer | [0]                                               | -0.000000 | NaN        | [0]                                               |
+| gaussianprocessregressor__normalize_y          | [False]                                           | -0.000000 | NaN        | [False]                                           |
+| gaussianprocessregressor__optimizer            | [fmin_l_bfgs_b]                                   | -0.000000 | NaN        | [fmin_l_bfgs_b]                                   |
+| gaussianprocessregressor__random_state         | [None]                                            | -0.000000 | NaN        | [None]                                            |
+:end:
+
+*** Perform sensitivity analysis
+it is easier to consider a grid of alphas and kernels to begin with,
+but some composite kernels can have internal variables further
+tweaked, i.e the Matern \nu parameter.
+
+This could yield improved performance, but certainly at the cost of
+considerably greater computational expense
+**** 1. construct subsequent HP space
+#+begin_src jupyter-python
+  grid =   [
+      {'columntransformer__comp__normalizer__norm': ['l2'],
+       'gaussianprocessregressor__kernel': [ker_smooth_lin],
+       'gaussianprocessregressor__alpha': [0.05],
+       'gaussianprocessregressor__n_restarts_optimizer': [0],
+       'gaussianprocessregressor__normalize_y': [False],
+       'gaussianprocessregressor__optimizer': ['fmin_l_bfgs_b'],
+       'gaussianprocessregressor__random_state': [None],
+       }
+  ]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  cpipe = cpipe.set_params(**{k:v[0] for k,v in grid[0].items()})
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+  
+**** nu validation scan
+using the 4 fold cross validation established by the LC analysis
+#+begin_src jupyter-python
+  param_name='gaussianprocessregressor__kernel__k1__k1__nu'
+  with joblib.parallel_backend('multiprocessing'):
+    VC = pvc(validation_curve, cpipe, X_tr, Y_tr[target].iloc[:,0],
+             param_name=param_name, param_range=np.linspace(0.5, 2.5, 8), cv=4, scoring=lot_scorings)
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:430: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k1__length_scale is close to the specified upper bound 10000.0. Increasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+
+  lbfgs failed to converge (status=2):
+  ABNORMAL_TERMINATION_IN_LNSRCH.
+
+  Increase the number of iterations (max_iter) or scale the data as shown in:
+      https://scikit-learn.org/stable/modules/preprocessing.html
+  /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+
+  The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+#+end_example
+:end:
+    
+#+begin_src jupyter-python
+  vc = VC.melt(id_vars=["partition"], ignore_index=False).reset_index()
+  vc = vc.groupby(['score','partition',param_name]).aggregate({'value':['mean','std']}).reset_index()
+  vc.columns = ["".join(column) for column in vc.columns.to_flat_index()]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python :file ../ValidationCurves/gpr_e_bg_alpha.svg
+  # mask = lc.score.str.contains('rmse|r2')
+  # lc = lc[mask]
+  p = px.line(vc, x=param_name, y='valuemean', error_y='valuestd',
+              facet_col='score', facet_col_wrap=3, color='partition',
+              height=600, width=900, 
+              facet_row_spacing=0.06,
+              facet_col_spacing=0.05)
+  p.update_layout(font_family='arial narrow', font_size=15,
+                  hovermode='x')
+  p.update_yaxes(matches=None, showticklabels=True)
+  # p.update_xaxes(showticklabels=True, row=2, col=3)
+  p.for_each_yaxis(lambda a: a.update(title_text=a.title.text[:-4] if a.title.text else None))
+  p.for_each_xaxis(lambda a: a.update(title_text=a.title.text.replace("_", " ") if a.title.text else None))
+  p.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1].replace("_", " ")))
+  p.show(renderer='svg')
+#+end_src
+
+#+RESULTS:
+:results:
+[[file:../ValidationCurves/gpr_t_bg_mnu.svg]]
+:end:
+
+** Best Model
+*** Parametrize
+#+begin_src jupyter-python 
+  grid =   [
+      {'columntransformer__comp__normalizer__norm': ['l2'],
+       'gaussianprocessregressor__kernel': [ker_smooth_lin],
+       'gaussianprocessregressor__alpha': [0.05],
+       'gaussianprocessregressor__n_restarts_optimizer': [0],
+       'gaussianprocessregressor__normalize_y': [False],
+       'gaussianprocessregressor__optimizer': ['fmin_l_bfgs_b'],
+       'gaussianprocessregressor__random_state': [None],
+       }
+  ]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+*** Train Final Estimator
+#+begin_src jupyter-python
+  cpipe = cpipe.set_params(**{k:v[0] for k,v in grid[0].items()})
+  cpipe.fit(X_tr, Y_tr[target].iloc[:,0]) #ravel 1D input
+#+end_src
+
+#+RESULTS:
+:results:
+: /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/kernels.py:420: ConvergenceWarning:
+: 
+: The optimal value found for dimension 0 of parameter k1__k2__sigma_0 is close to the specified lower bound 1e-08. Decreasing the bound and calling fit again may find a better value.
+: 
+#+begin_example
+  Pipeline(steps=[('columntransformer',
+                   ColumnTransformer(transformers=[('comp',
+                                                    Pipeline(steps=[('simpleimputer',
+                                                                     SimpleImputer(fill_value=0.0,
+                                                                                   strategy='constant')),
+                                                                    ('normalizer',
+                                                                     Normalizer()),
+                                                                    ('minmaxscaler',
+                                                                     MinMaxScaler())]),
+                                                    Index(['('A', 'Cs')', '('A', 'FA')', '('A', 'K')', '('A', 'MA')',
+         '('A', 'Rb')', '('B', 'Ba')', '('B', 'Ca')', '('B', 'Ge')',
+         '('B', 'Pb')', '('B...
+                                           'A;IonE_kJpermol',
+                                           'A;Heat_of_fusion_kJpermol',
+                                           'A;Heat_of_vap_kJpermol', 'A;En',
+                                           'A;at_num', 'A;period', 'B;ion_rad_Å',
+                                           'B;Boiling_Point_K',
+                                           'B;Melting_Point_K', 'B;dens_gpercc', ...],
+                                  sis_out=<pysisso.outputs.FeatureSpace object at 0x7fba1a8f63b0>)),
+                  ('gaussianprocessregressor',
+                   GaussianProcessRegressor(alpha=0.05,
+                                            kernel=RBF(length_scale=1) * DotProduct(sigma_0=1) + 1**2))])
+#+end_example
+:end:
+
+*** evaluate
+#+begin_src jupyter-python :file ../ParityPlots/gpr_e_bg.svg
+  p, data = parityplot(cpipe,
+                       X_tr, Y_tr[target], "train",
+                       X_ts, Y_ts[target], "test",
+                       symbol='partition',
+                       hover_name=Y.Formula, color=Y.LoT,
+                       predict_params={})
+  p.update_traces(
+      marker_opacity=0.2,
+      selector={'marker_symbol':'diamond'}
+  )
+
+  p.update_layout(title_text='Band Gaps [eV]', font_family='arial narrow', font_size=15,
+                  margin=dict(t=35,b=0,l=0,r=0))
+  p.update_annotations(visible=False)
+
+  p.show(renderer='svg')
+#+end_src
+
+#+RESULTS:
+:results:
+#+attr_org: :width 700
+[[file:../ParityPlots/gpr_e_bg.svg]]
+:end:
+  
+#+begin_src jupyter-python 
+  p.write_html('./ParityPlots/gpr_e_bg.html', include_plotlyjs='../plotly.min.js')
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  pd.Series(batch_score(cpipe, X_ts, Y_ts[target], **mix_scorings)).to_frame()
+#+end_src
+
+#+RESULTS:
+:results:
+|           | 0         |
+|-----------+-----------|
+| r2        | 0.963242  |
+| ev        | 0.963522  |
+| maxerr    | -2.229939 |
+| rmse      | -0.286352 |
+| rmse_A    | -0.152230 |
+| rmse_B    | -0.243812 |
+| rmse_X    | -0.467550 |
+| rmse_pure | -0.212556 |
+:end:
+
+#+begin_src jupyter-python
+  pd.Series(batch_score(cpipe, X_ts, Y_ts[target], **lot_scorings)).to_frame()
+#+end_src
+
+#+RESULTS:
+:results:
+|                   | 0         |
+|-------------------+-----------|
+| r2                | 0.963242  |
+| ev                | 0.963522  |
+| maxerr            | -2.229939 |
+| rmse              | -0.286352 |
+| rmse_EXP          | -0.263109 |
+| rmse_PBE          | -0.202831 |
+| rmse_HSE          | -0.382996 |
+| rmse_HSE(SOC)     | -0.331677 |
+| rmse_HSE-PBE(SOC) | -0.247296 |
+:end:
+
+#+begin_src jupyter-python
+  pd.concat([data, Y[['Formula', 'LoT', 'mix', 'org']]], axis=1).to_csv('~/data/perovskites/gpr_sis_pred.csv')
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+*** introspect
+**** SHAP
+***** instantiate explainer engine
+#+begin_src jupyter-python
+  explainer = shap.Explainer(cpipe[-1].predict,
+                             cpipe[:-1].transform(shap.sample(X_tr, 300)),
+                             feature_names=cpipe[:-1].get_feature_names_out())
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+  
+#+begin_src jupyter-python
+  shap_values = explainer(cpipe[:-1].transform(X))
+#+end_src
+
+#+RESULTS:
+:results:
+: Permutation explainer: 1385it [46:42,  2.03s/it]
+:end:
+
+#+begin_src jupyter-python
+  %matplotlib inline
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  plt.rc("figure", facecolor='w')
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+***** shap scatter plot
+#+begin_src jupyter-python
+  shap.plots.scatter(shap_values[:,"prop__('B', 'En')"])
+#+end_src
+
+#+RESULTS:
+:results:
+#+attr_org: :width 414
+[[file:./.ob-jupyter/dc9f285ca08cd92cf63953daf3a2677cb71b8690.png]]
+:end:
+
+***** partial dependence plots
+#+begin_src jupyter-python
+  sample_ind = 30
+  shap.partial_dependence_plot(
+      "prop__('B', 'El_aff_kJ/mol')", cpipe[-1].predict, cpipe[:-1].transform(shap.sample(X_tr, 300)),
+      feature_names=cpipe[:-1].get_feature_names_out(),#FI.index.to_list(),
+      ice=False, model_expected_value=True,
+      feature_expected_value=True, show=True,
+      shap_values=shap_values[sample_ind:sample_ind+1,:]
+  )
+#+end_src
+
+#+RESULTS:
+:results:
+#+attr_org: :width 428
+[[file:./.ob-jupyter/fcec7f51ff1f6eab36263f8cd637543364c57f5c.png]]
+:end:
+
+***** waterfall plots
+#+begin_src jupyter-python
+  shap.plots.waterfall(shap_values[sample_ind], max_display=14)
+#+end_src
+
+#+RESULTS:
+:results:
+#+attr_org: :width 749
+[[file:./.ob-jupyter/228f9770ba6e7640c0161f1a29a171395421f266.png]]
+:end:
+
+***** beeswarm plots
+#+begin_src jupyter-python
+  shap.plots.beeswarm(shap_values)
+#+end_src
+
+#+RESULTS:
+:results:
+#+attr_org: :width 674
+[[file:./.ob-jupyter/df8f4cdfbd4884fe978d0b0dc85e13e95137248c.png]]
+:end:
+
+***** explore correlated features
+#+begin_src jupyter-python
+  # depends on xgboost module
+  # clustering = shap.utils.hclust(X, Y)
+#+end_src
+
+#+begin_src jupyter-python
+  # shap.plots.bar(shap_values, clustering=clustering)
+#+end_src
+
+** Measure Optimized estimator's ability to extrapolate
+on this domain get scores per:
+*** LoT on LoT group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=5), lot_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], LoTcat_tr, Y_tr.LoT,
+                  X_ts, Y_ts[target].iloc[:,0], LoTcat_ts, Y_ts.LoT)
+#+end_src
+
+#+RESULTS:
+:results:
+: /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+: 
+: lbfgs failed to converge (status=2):
+: ABNORMAL_TERMINATION_IN_LNSRCH.
+: 
+: Increase the number of iterations (max_iter) or scale the data as shown in:
+:     https://scikit-learn.org/stable/modules/preprocessing.html
+: 
+|        | PBErel   | HSErel   | HSErel(SOC) | HSE-PBE(SOC) | EXP      | partition  |
+|--------+----------+----------+-------------+--------------+----------+------------|
+| r2     | 0.25460  | 0.73512  | 0.84211     | 0.92621      | -0.34110 | validation |
+| ev     | 0.78242  | 0.90288  | 0.90859     | 0.92832      | -0.08554 | validation |
+| maxerr | -2.95361 | -2.56769 | -2.86256    | -1.81769     | -1.40666 | validation |
+| rmse   | -1.08343 | -0.70312 | -0.58754    | -0.44345     | -0.50816 | validation |
+| r2     | 0.46045  | 0.72491  | 0.89445     | 0.93957      | -0.54342 | test       |
+| ev     | 0.86452  | 0.87461  | 0.94252     | 0.94588      | -0.52758 | test       |
+| maxerr | -2.95361 | -2.36270 | -1.08397    | -0.79401     | -1.12645 | test       |
+| rmse   | -1.00930 | -0.69579 | -0.46599    | -0.40077     | -0.49971 | test       |
+:end:
+
+- horrible lot extrapolation
+- lot scoring
+- Better at Predicting EXP than RFR
+
+*** LoT on mix group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=4), lot_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], mixcat_tr, Y_tr.mix,
+                  X_ts, Y_ts[target].iloc[:,0], mixcat_ts, Y_ts.mix)
+#+end_src
+
+#+RESULTS:
+:results:
+|                   | B        | pure     | X        | A        | partition  |
+|-------------------+----------+----------+----------+----------+------------|
+| r2                | 0.84182  | 0.96886  | 0.73215  | 0.94608  | validation |
+| ev                | 0.87613  | 0.96956  | 0.76817  | 0.96318  | validation |
+| maxerr            | -1.55410 | -1.13563 | -2.66874 | -1.25070 | validation |
+| rmse              | -0.44952 | -0.31245 | -0.69715 | -0.37541 | validation |
+| rmse_EXP          | -0.14855 | -0.43915 | -0.14011 | -0.01808 | validation |
+| rmse_PBE          | -0.33857 | -0.21088 | -0.69824 | -0.33356 | validation |
+| rmse_HSE          | -0.48299 | -0.31984 | -0.84448 | -0.40517 | validation |
+| rmse_HSE(SOC)     | -0.58672 | -0.39082 | -0.85885 | -0.53867 | validation |
+| rmse_HSE-PBE(SOC) | -0.34837 | -0.27302 | -0.42645 | -0.32974 | validation |
+| r2                | 0.87721  | 0.97608  | 0.89957  | 0.98865  | test       |
+| ev                | 0.91516  | 0.97625  | 0.90105  | 0.98880  | test       |
+| maxerr            | -1.26581 | -0.83735 | -1.99217 | -0.83072 | test       |
+| rmse              | -0.43934 | -0.27939 | -0.41309 | -0.17817 | test       |
+| rmse_EXP          | -0.24956 | -0.06329 | -0.01019 | -0.00149 | test       |
+| rmse_PBE          | -0.25013 | -0.24991 | -0.19789 | -0.22028 | test       |
+| rmse_HSE          | -0.46521 | -0.30134 | -1.03164 | -0.15126 | test       |
+| rmse_HSE(SOC)     | -0.54355 | -0.31641 | -0.58108 | -0.11713 | test       |
+| rmse_HSE-PBE(SOC) | -0.49439 | -0.26201 | -0.18899 | -0.06581 | test       |
+:end:
+
+- mix extrapolation
+- lot scoring
+- might outperform B alloy predictions
+
+*** mix on mix group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=4), mix_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], mixcat_tr, Y_tr.mix,
+                  X_ts, Y_ts[target].iloc[:,0], mixcat_ts, Y_ts.mix)
+#+end_src
+
+#+RESULTS:
+:results:
+|        | B        | pure     | X        | A        | partition  |
+|--------+----------+----------+----------+----------+------------|
+| r2     | 0.84182  | 0.96886  | 0.73215  | 0.94608  | validation |
+| ev     | 0.87613  | 0.96956  | 0.76817  | 0.96318  | validation |
+| maxerr | -1.55410 | -1.13563 | -2.66874 | -1.25070 | validation |
+| rmse   | -0.44952 | -0.31245 | -0.69715 | -0.37541 | validation |
+| r2     | 0.87721  | 0.97608  | 0.89957  | 0.98865  | test       |
+| ev     | 0.91516  | 0.97625  | 0.90105  | 0.98880  | test       |
+| maxerr | -1.26581 | -0.83735 | -1.99217 | -0.83072 | test       |
+| rmse   | -0.43934 | -0.27939 | -0.41309 | -0.17817 | test       |
+:end:
+
+- mix extrapolation
+- mix scoring
+- consistent with above
+
+*** mix on LoT group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=5), mix_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], LoTcat_tr, Y_tr.LoT,
+                  X_ts, Y_ts[target].iloc[:,0], LoTcat_ts, Y_ts.LoT)
+#+end_src
+
+#+RESULTS:
+:results:
+: /opt/miniconda3/envs/mrg/lib/python3.10/site-packages/sklearn/gaussian_process/_gpr.py:616: ConvergenceWarning:
+: 
+: lbfgs failed to converge (status=2):
+: ABNORMAL_TERMINATION_IN_LNSRCH.
+: 
+: Increase the number of iterations (max_iter) or scale the data as shown in:
+:     https://scikit-learn.org/stable/modules/preprocessing.html
+: 
+|           | PBErel   | HSErel   | HSErel(SOC) | HSE-PBE(SOC) | EXP      | partition  |
+|-----------+----------+----------+-------------+--------------+----------+------------|
+| r2        | 0.25460  | 0.73512  | 0.84211     | 0.92621      | -0.34110 | validation |
+| ev        | 0.78242  | 0.90288  | 0.90859     | 0.92832      | -0.08554 | validation |
+| maxerr    | -2.95361 | -2.56769 | -2.86256    | -1.81769     | -1.40666 | validation |
+| rmse      | -1.08343 | -0.70312 | -0.58754    | -0.44345     | -0.50816 | validation |
+| rmse_A    | -0.99504 | -0.60946 | -0.53578    | -0.38378     | -0.56143 | validation |
+| rmse_B    | -0.66869 | -0.61777 | -0.38599    | -0.29990     | -0.46349 | validation |
+| rmse_X    | -1.45752 | -1.11986 | -1.04302    | -0.73305     | -0.41098 | validation |
+| rmse_pure | -0.93830 | -0.63748 | -0.59553    | -0.47091     | -0.60892 | validation |
+| r2        | 0.46045  | 0.72491  | 0.89445     | 0.93957      | -0.54342 | test       |
+| ev        | 0.86452  | 0.87461  | 0.94252     | 0.94588      | -0.52758 | test       |
+| maxerr    | -2.95361 | -2.36270 | -1.08397    | -0.79401     | -1.12645 | test       |
+| rmse      | -1.00930 | -0.69579 | -0.46599    | -0.40077     | -0.49971 | test       |
+| rmse_A    | -1.01989 | -0.56467 | -0.55287    | -0.37415     | -0.39432 | test       |
+| rmse_B    | -0.68878 | -0.50209 | -0.41035    | -0.37589     | -0.68742 | test       |
+| rmse_X    | -1.42029 | -1.49766 | -0.71088    | -0.56055     | -0.37325 | test       |
+| rmse_pure | -0.90402 | -0.74667 | -0.46709    | -0.40203     | -0.35796 | test       |
+:end:
+
+- horrible lot extrapolations 
+- mix scoring
+- EXP is consistently difficult to predict
+
+* Export Trained Model
+#+begin_src jupyter-python
+  joblib.dump(cpipe, "./Models/gpr_e_bg.joblib")
+#+end_src
+
+#+RESULTS:
+:results:
+| ./Models/gpr_e_bg.joblib |
+:end:
+
+* Footnotes
+#+NAME: wrap
+#+begin_src bash :var p="" :var w="300pt" :var c="" :results output
+  echo -ne "$p \n#+attr_latex: :width $w\n#+CAPTION: $c"
+#+end_src
