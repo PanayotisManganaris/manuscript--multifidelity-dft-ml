@@ -821,7 +821,7 @@ kernel with \(\nu = \frac{3}{2}\).
 :END:
 #+CAPTION: label:fig:rfrSHAP Random Forest Regression Band Gap SHAP Values
 #+attr_latex: :width 450pt
-[[file:/home/panos/Documents/manuscripts/DFT+ML+feature_engineering/RFR/.ob-jupyter/704d3204752bc52a936aeb9d96e45380512c8c3d.png]]
+[[file:./RFR/.ob-jupyter/704d3204752bc52a936aeb9d96e45380512c8c3d.png]]
 
 [[acrshort:shap][SHAP]] scores are computed automatically for every dimension of every
 sample in the domain. The sum of [[acrshort:shap][SHAP]] scores computed for each
@@ -847,7 +847,7 @@ positive valued band gap.
 
 #+CAPTION: label:fig:gprSHAP Gaussian Process Regression Band Gap SHAP Values
 #+attr_latex: :width 450pt
-[[file:/home/panos/Documents/manuscripts/DFT+ML+feature_engineering/GPR/.ob-jupyter/df8f4cdfbd4884fe978d0b0dc85e13e95137248c.png]]
+[[file:./GPR/.ob-jupyter/df8f4cdfbd4884fe978d0b0dc85e13e95137248c.png]]
 
 These [[acrshort:shap][SHAP]] scores can be used to gain insights into the contributions
 of site members and site member properties to the perovskite band
