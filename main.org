@@ -610,7 +610,7 @@ begin to approximate an orthogonal basis it outperforms
 CUR[[cite:&ray-2021-various-dimen;&hamm-2019-cur-decom]] decomposition by
 functioning effectively in extremely high rank vector spaces. This is
 accomplished by posing the decomposition as a compressed sensing
-problem in the correlation metric space.
+problem in the correlation metric space. We provide a Sci-Kit Learn
 
 It allows the program to effectively find candidates for a linearly
 independent basis in a vector space of immense size. unlike legacy

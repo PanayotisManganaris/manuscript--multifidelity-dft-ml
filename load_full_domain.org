@@ -11,12 +11,25 @@
   almora_q = "SELECT * FROM almora"
   ref_q = "SELECT * FROM mannodi_ref_elprop"
   with sqlite3.connect(os.path.expanduser("~/src/cmcl/cmcl/db/perovskites.db")) as conn:
-      pbe = pd.read_sql(pbeq, conn, index_col="index")
-      hse = pd.read_sql(hseq, conn, index_col="index")
-      hsc = pd.read_sql(hscq, conn, index_col="index")
-      phc = pd.read_sql(phcq, conn, index_col="index")
-      almora = pd.read_sql(almora_q, conn, index_col='index')
+      pbeold = pd.read_sql(pbeq, conn, index_col="index")
+      hseold = pd.read_sql(hseq, conn, index_col="index")
+      hscold = pd.read_sql(hscq, conn, index_col="index")
+      phcold = pd.read_sql(phcq, conn, index_col="index")
+      almoraold = pd.read_sql(almora_q, conn, index_col='index')
       lookup = pd.read_sql(ref_q, conn, index_col='index').set_index("Formula")
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  pbe.read_csv("~/data/perovskites/current/pbe.csv", index_col=0, header=0)
+  pbe = pd.read_csv('~/data/perovskites/pbe.')
+  hse = pd.read_sql(hseq, conn, index_col="index")
+  hsc = pd.read_sql(hscq, conn, index_col="index")
+  phc = pd.read_sql(phcq, conn, index_col="index")
+  almora = pd.read_sql(almora_q, conn, index_col='index')
 #+end_src
 
 #+RESULTS:
