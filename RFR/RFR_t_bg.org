@@ -1,0 +1,1645 @@
+#+TITLE: Optimized RFR Band Gap Models based on All Features
+#+AUTHOR: Panayotis Manganaris
+#+EMAIL: pmangana@purdue.edu
+#+PROPERTY: header-args :session mrg :kernel mrg :async yes :pandoc org :results raw drawer
+* TODO checklist
+tick each model exhaustively optimized and saved
+- [-] minimal feature engineering
+  - [X] "parallel MF"
+  - [ ] "sequential MF"
+- [-] SISSO Domain
+  - [-] "parallel MF"
+  - [ ] "sequential MF"
+* Dependencies
+#+INCLUDE: /home/panos/Documents/manuscripts/DFT+ML+feature_engineering/dev_dependencies.org
+#+begin_src jupyter-python
+  # predictors
+  from sklearn.ensemble import RandomForestRegressor
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* Load Data
+#+INCLUDE: /home/panos/Documents/manuscripts/DFT+ML+feature_engineering/load_full_domain.org
+** focus on target 
+Define generic X and Y here. Optionally pick the domain on which to
+model a fully defined co-domain
+- mm :: all features
+- mp :: prop features
+- mc :: comp features
+#+begin_src jupyter-python
+  target=['bg_eV']
+  Y = my.dropna(subset=target)
+  # use mm, or mc/mp + categorical features
+  X = mm.reindex(index=Y.index)
+  # X = mm[[mc.columns.to_list + ["LoT"]]]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* Scoring Scheme
+** Scoring
+The composition space is approximated by a set of discrete domains due
+the limited nature of the 2x2x2 supercells used to obtain this
+data. The pure domain is completely covered by 90 data points. The
+alloy domains are combinatorial large in the 14 dimensional component
+space under focus, and each has only been sparsely sampled.
+
+Our primary objective is to create a surrogate model of these domains
+that can be used for on-demand prediction, active learning, and
+inverse design.
+
+In order to target model generality, it will be necessary to score the
+model's performance with respect to it's predictions individually over
+each alloy domain and over the union of these domains.
+** Define Scoring Metrics
+Nine metrics are used to monitor the fitness of the random forest model.
+some monitor the data trend and spread
+- R^2
+- Explained Variance
+one monitors the largest breakdown in accuracy.
+- Max Error
+six group-wise RMSE metrics monitor accuracy for each 
+- total RMSE
+- A-site RMSE
+- B-site RMSE
+- X-site RMSE
+- XandB-site RMSE
+- pure RMSE
+
+the PandasScoreAdaptor (PSA) ensures the prediction losses are
+weighted correctly when scoring so long as both the targets and the
+sample weights passed to the estimators are always pandas objects
+
+** prepare subset scoring weights and ordinal group labels
+*** score on mixtype
+#+begin_src jupyter-python
+  mixweight = pd.get_dummies(Y.mix)
+  mixcat = pd.Series(OrdinalEncoder().fit_transform(Y.mix.values.reshape(-1, 1)).reshape(-1),
+                     index=Y.index).astype(int)
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+*** score on level of theory
+#+begin_src jupyter-python
+  LoTweight = pd.get_dummies(Y.LoT)
+  LoTcat = pd.Series(OrdinalEncoder().fit_transform(Y.LoT.values.reshape(-1, 1)).reshape(-1),
+                     index=Y.index).astype(int)
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+** Define Scoring Metrics
+*** score on mixtype
+#+begin_src jupyter-python
+  index_mse = PSA(mean_squared_error).score
+  mix_scorings = {'r2': make_scorer(r2_score),
+                  'ev': make_scorer(explained_variance_score),
+                  'maxerr': make_scorer(max_error, greater_is_better=False),
+                  'rmse': make_scorer(mean_squared_error, greater_is_better=False, squared=False),
+                  'rmse_A': make_scorer(index_mse, greater_is_better=False,
+                                        squared=False, sample_weight=mixweight.A),
+                  'rmse_B': make_scorer(index_mse, greater_is_better=False,
+                                        squared=False, sample_weight=mixweight.B),
+                  'rmse_X': make_scorer(index_mse, greater_is_better=False,
+                                        squared=False, sample_weight=mixweight.X),
+                  'rmse_pure': make_scorer(index_mse, greater_is_better=False,
+                                           squared=False, sample_weight=mixweight.pure),}
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+*** score on level of theory
+#+begin_src jupyter-python
+  lot_scorings = {'r2': make_scorer(r2_score),
+                  'ev': make_scorer(explained_variance_score),
+                  'maxerr': make_scorer(max_error, greater_is_better=False),
+                  'rmse': make_scorer(mean_squared_error, greater_is_better=False, squared=False),
+                  'rmse_EXP': make_scorer(index_mse, greater_is_better=False,
+                                          squared=False, sample_weight=LoTweight['EXP']),
+                  'rmse_PBE': make_scorer(index_mse, greater_is_better=False,
+                                          squared=False, sample_weight=LoTweight['PBErel']),
+                  'rmse_HSE': make_scorer(index_mse, greater_is_better=False,
+                                          squared=False, sample_weight=LoTweight['HSErel']),
+                  'rmse_HSE(SOC)': make_scorer(index_mse, greater_is_better=False,
+                                          squared=False, sample_weight=LoTweight['HSErel(SOC)']),
+                  'rmse_HSE-PBE(SOC)': make_scorer(index_mse, greater_is_better=False,
+                                          squared=False, sample_weight=LoTweight['HSE-PBE(SOC)']),}
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* Partitioning Data
+To ensure testing on proportional quantities of each fidelity, a
+stratified shuffle split creates the test/train partitions
+
+- all decisions about model optimization will be made using only the dedicated training partition
+- The test partition will be reserved until a final model pipeline is parametrized and fit
+- the predictions made on the test partition will either confirm or deny the model's ability to work outside of the training sample
+
+* Make Dedicated Test Train Split
+#+begin_src jupyter-python
+  sss = StratifiedShuffleSplit(n_splits=1, train_size=0.8, random_state=None)
+  train_idx, test_idx = next(sss.split(X, LoTcat)) #stratify split by LoT categories
+  X_tr, X_ts = X.iloc[train_idx], X.iloc[test_idx]
+  Y_tr, Y_ts = Y.iloc[train_idx], Y.iloc[test_idx]
+  LoTcat_tr, LoTcat_ts = LoTcat.iloc[train_idx], LoTcat.iloc[test_idx]
+  mixcat_tr, mixcat_ts = mixcat.iloc[train_idx], mixcat.iloc[test_idx]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* Import Trained Model
+load if available, then skip *Make Model*. Available suffixes:
+- [X] t :: total feature space
+- [ ] c :: comp feature space
+- [ ] p :: prop feature space
+- [ ] s :: engineered superspace
+
+Never load joblib/pickle files that you do not trust, they can execute
+arbitrary code on your computer.
+
+#+begin_src jupyter-python
+  cpipe = joblib.load("./Models/rfr_t_bg.joblib")
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+* Make Model
+** Pipelines
+The model we use relies on a standard chain of data preprocessing
+steps. These steps are encapsulated in a single pipeline instantiated here.
+
+Later, exhaustive grid search hyperparameter optimization results in a
+final choice of parameters that ensure the architecture performs as
+best it can as a surrogate model in inverse design.
+
+** Make Pipeline
+#+begin_src jupyter-python
+  #dynamic matching possible like:
+  # comp_features = X.select_dtypes(np.number).columns[
+  #     X.select_dtypes(np.number).columns.str.match(r"\('[ABX]', '[^E]\w{,2}'\)")
+  # ]
+  # composition vectors for preprocessing
+  comp_features = mc.columns
+
+  # site-avg properties for preprocessing
+  prop_features = mp.columns
+
+  # categorical properties for preprocessing
+  cat_features = mm.select_dtypes('object').columns
+
+  # define preprocessing
+  fillna = SimpleImputer(strategy="constant", fill_value=0.0)
+  mkratio = Normalizer(norm='l1')
+  mknormal = StandardScaler()
+  mkbound = MinMaxScaler(feature_range=(0,1), clip=False) #not statistical, should work for anything
+
+  comp_transformer = mkpipe(fillna, mkratio, mkbound)
+  prop_transformer = mkpipe(fillna, mknormal, mkbound)
+  cat_transformer = ohe(handle_unknown="ignore")
+
+  preprocessor = colt(
+      transformers=[
+          ("comp", comp_transformer, comp_features),
+          ("prop", prop_transformer, prop_features),
+          ("cat", cat_transformer, cat_features),
+      ]
+  )
+
+  cpipe = mkpipe(preprocessor, RandomForestRegressor())
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  with open('./Models/RFR.html', 'w') as f:  
+      f.write(estimator_html_repr(cpipe))
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+** Rational Training Validation
+Cross-validation within the training set will be the only way of
+checking the generality of models during the grid search. identifying
+the validation split size is necessary to obtain an understanding of
+how much data is needed to train a model that can be generalized.
+
+Generally more data offers better chances. However, the smaller the
+split, the more expensive the training -- e.g. 10-fold splits makes
+for 10 sample scores at each partition size. Meaning, 90% of the
+training set is used for actual training and the remaining 10% is used
+for validation and this is repeated 10 times within the =pvc=
+function.
+
+For the learning curves, shuffling is seeded with a deterministic
+random state to ensure scores are comparable across sizes. The size
+that balances maximizing confidence in the trained model's performance
+with minimizing the cost of the training/validation loop is then used
+in the subsequent engineering steps /without/ being deterministically
+seeded.
+
+*Notice that the error metrics are negated so that, consistently with*
+*the R^2 and ev scores, the greater the number, the better the model*
+*performs.*
+
+** Learning Curves -- Using Deterministically Random Cross Validation
+#+begin_src jupyter-python
+  kf_lc = KFold(n_splits=10, shuffle=True, random_state=111)
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  with joblib.parallel_backend('multiprocessing'):
+    LC = pvc(learning_curve, cpipe, X_tr, Y_tr[target].iloc[:,0], #ravel 1D target
+             train_sizes=np.linspace(0.1, 1.0, 10), cv=kf_lc,
+             scoring=lot_scorings) #change scorings as needed
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  lc = LC.melt(id_vars=["partition"], ignore_index=False).reset_index()
+  lc = lc.groupby(['score','partition','train_sizes']).aggregate({'value':['mean','std']}).reset_index()
+  lc.columns = ["".join(column) for column in lc.columns.to_flat_index()]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+  
+#+begin_src jupyter-python :file ../LearningCurves/rfr_t_bg.png
+  # mask = lc.score.str.contains('rmse|r2')
+  # lc = lc[mask]
+  p = px.line(lc, x='train_sizes', y='valuemean', error_y='valuestd',
+              facet_col='score', facet_col_wrap=3, color='partition',
+              height=600, width=900, 
+              facet_row_spacing=0.06,
+              facet_col_spacing=0.05)
+  p.update_layout(font_family='arial narrow', font_size=15,
+                  hovermode='x')
+  p.update_yaxes(matches=None, showticklabels=True)
+  # p.update_xaxes(showticklabels=True, row=2, col=3)
+  p.for_each_yaxis(lambda a: a.update(title_text=a.title.text[:-4] if a.title.text else None))
+  p.for_each_xaxis(lambda a: a.update(title_text=a.title.text.replace("_", " ") if a.title.text else None))
+  p.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1].replace("_", " ")))
+  p.show(renderer='svg')
+#+end_src
+
+#+RESULTS:
+:results:
+[[file:../LearningCurves/rfr_t_bg.png]]
+:end:
+
+It appears that 3-4 fold cross-validation is sufficient
+- use 700-750 points, validating with the compliment
+- RF validation scores continue to rise as the partition size grows
+- Random Forest generality increases with more exposure
+- Equivalently, an insufficiently experienced random forest is biased towards what it has seen.
+
+#+begin_src jupyter-python
+  p.write_html('./LearningCurves/rfr_t_bg.html', include_plotlyjs='../plotly.min.js')
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+** Rigorous Hyper-parameter Optimization
+Now that an optimal cross validation split is determined and a scoring
+scheme has been established, the model architecture needs to be tuned
+to perform in a useful way.
+
+We intend to train a multi-fidelity model that is capable to making
+experiment-grade predictions by observing a population of simulation
+data.
+
+This can be done by selectively tuning the architecture to
+simultaneously consider data spanning multiple fidelities, samples
+being distinguished by a simple categorical label.
+
+=test_generality= produces a table. *Columns indicate a group in the*
+*training partition data which is removed entirely*. The rows indicate
+the scoring metric, two tables are joined together in a long format
+and a categorical column is added to reflect the partition from
+which the score is computed.
+** Measure baseline estimator's ability to extrapolate
+on this domain get scores per:
+*** LoT on LoT group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=5), lot_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], LoTcat_tr, Y_tr.LoT,
+                  X_ts, Y_ts[target].iloc[:,0], LoTcat_ts, Y_ts.LoT)
+#+end_src
+
+#+RESULTS:
+:results:
+|        | PBErel   | HSErel   | HSErel(SOC) | HSE-PBE(SOC) | EXP      | partition  |
+|--------+----------+----------+-------------+--------------+----------+------------|
+| r2     | 0.47783  | 0.66912  | 0.85708     | 0.96146      | -1.02715 | validation |
+| ev     | 0.83197  | 0.83514  | 0.87533     | 0.96654      | -0.60178 | validation |
+| maxerr | -2.35789 | -2.89433 | -2.70083    | -2.13820     | -1.39868 | validation |
+| rmse   | -0.93145 | -0.78570 | -0.55141    | -0.32389     | -0.58633 | validation |
+| r2     | 0.44088  | 0.67155  | 0.78376     | 0.97511      | -0.42905 | test       |
+| ev     | 0.86691  | 0.85140  | 0.82777     | 0.97927      | -0.42310 | test       |
+| maxerr | -1.69541 | -2.15771 | -3.15073    | -0.68099     | -0.88081 | test       |
+| rmse   | -0.92847 | -0.75922 | -0.70455    | -0.24811     | -0.59579 | test       |
+:end:
+
+- lot extrapolation
+- lot scoring
+- difference in prediction performance reflect distance between calculated bandgaps
+  - PBE distant from HSE and HSE(SOC) distant from EXP
+
+*** LoT on mix group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=4), lot_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], mixcat_tr, Y_tr.mix,
+                  X_ts, Y_ts[target].iloc[:,0], mixcat_ts, Y_ts.mix)
+#+end_src
+
+#+RESULTS:
+:results:
+|                   | B        | pure     | X        | A        | partition  |
+|-------------------+----------+----------+----------+----------+------------|
+| r2                | 0.73700  | 0.96391  | 0.86434  | 0.92945  | validation |
+| ev                | 0.74334  | 0.96458  | 0.86638  | 0.94414  | validation |
+| maxerr            | -1.82965 | -1.31609 | -2.50240 | -1.54650 | validation |
+| rmse              | -0.60486 | -0.33391 | -0.51016 | -0.44494 | validation |
+| rmse_EXP          | -0.17462 | -0.51321 | -0.21622 | -0.25355 | validation |
+| rmse_PBE          | -0.50391 | -0.23127 | -0.37307 | -0.38452 | validation |
+| rmse_HSE          | -0.59906 | -0.42109 | -0.85799 | -0.40442 | validation |
+| rmse_HSE(SOC)     | -0.67679 | -0.32143 | -0.68153 | -0.65408 | validation |
+| rmse_HSE-PBE(SOC) | -0.65802 | -0.29322 | -0.48661 | -0.51920 | validation |
+| r2                | 0.70135  | 0.96864  | 0.76973  | 0.85899  | test       |
+| ev                | 0.70967  | 0.96934  | 0.77651  | 0.89161  | test       |
+| maxerr            | -1.67832 | -1.23493 | -2.60564 | -1.63550 | test       |
+| rmse              | -0.58854 | -0.33481 | -0.52496 | -0.53401 | test       |
+| rmse_EXP          | -0.31651 | -0.07435 | -0.12486 | -0.07543 | test       |
+| rmse_PBE          | -0.51523 | -0.26169 | -0.26933 | -0.39192 | test       |
+| rmse_HSE          | -0.63856 | -0.47094 | -0.48112 | -0.88095 | test       |
+| rmse_HSE(SOC)     | -0.70157 | -0.40124 | -1.33130 | -0.66155 | test       |
+| rmse_HSE-PBE(SOC) | -0.51528 | -0.16335 | -0.32340 | -0.13873 | test       |
+:end:
+
+- mix extrapolation
+- lot scoring
+- generally better than 0.5 eV rmse
+- B alloys hard to predict from other alloy types
+
+*** mix on mix group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=4), mix_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], mixcat_tr, Y_tr.mix,
+                  X_ts, Y_ts[target].iloc[:,0], mixcat_ts, Y_ts.mix)
+#+end_src
+
+#+RESULTS:
+:results:
+|        | B        | pure     | X        | A        | partition  |
+|--------+----------+----------+----------+----------+------------|
+| r2     | 0.79255  | 0.96325  | 0.86341  | 0.92902  | validation |
+| ev     | 0.79538  | 0.96416  | 0.86478  | 0.94438  | validation |
+| maxerr | -1.56226 | -1.17805 | -2.51316 | -1.53642 | validation |
+| rmse   | -0.53720 | -0.33697 | -0.51189 | -0.44627 | validation |
+| r2     | 0.71645  | 0.96901  | 0.76532  | 0.85530  | test       |
+| ev     | 0.72022  | 0.96978  | 0.77064  | 0.89016  | test       |
+| maxerr | -1.68469 | -1.22236 | -2.59049 | -1.62542 | test       |
+| rmse   | -0.57347 | -0.33284 | -0.52997 | -0.54094 | test       |
+:end:
+
+- mix extrapolation
+- mix scoring
+- consistent with prior extrapolation scores
+
+*** mix on LoT group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=5), mix_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], LoTcat_tr, Y_tr.LoT,
+                  X_ts, Y_ts[target].iloc[:,0], LoTcat_ts, Y_ts.LoT)
+#+end_src
+
+#+RESULTS:
+:results:
+|           | PBErel   | HSErel   | HSErel(SOC) | HSE-PBE(SOC) | EXP      | partition  |
+|-----------+----------+----------+-------------+--------------+----------+------------|
+| r2        | 0.47689  | 0.67258  | 0.85341     | 0.96145      | -1.31624 | validation |
+| ev        | 0.82777  | 0.83656  | 0.87454     | 0.96723      | -0.77994 | validation |
+| maxerr    | -2.36185 | -2.90937 | -2.74007    | -2.21333     | -1.41574 | validation |
+| rmse      | -0.93229 | -0.78159 | -0.55845    | -0.32394     | -0.62674 | validation |
+| rmse_A    | -0.97603 | -0.61115 | -0.39425    | -0.21204     | -0.63558 | validation |
+| rmse_B    | -0.58303 | -0.63676 | -0.39768    | -0.21578     | -0.67340 | validation |
+| rmse_X    | -1.11985 | -1.34773 | -1.06921    | -0.63899     | -0.59224 | validation |
+| rmse_pure | -0.98610 | -0.73534 | -0.54736    | -0.30566     | -0.64638 | validation |
+| r2        | 0.44053  | 0.68467  | 0.77762     | 0.97446      | -0.55913 | test       |
+| ev        | 0.86250  | 0.86067  | 0.82169     | 0.98068      | -0.54736 | test       |
+| maxerr    | -1.75084 | -2.04822 | -3.17477    | -0.62374     | -0.92696 | test       |
+| rmse      | -0.92875 | -0.74390 | -0.71447    | -0.25129     | -0.62231 | test       |
+| rmse_A    | -1.07901 | -0.80747 | -0.63802    | -0.25902     | -0.59594 | test       |
+| rmse_B    | -0.69738 | -0.68279 | -0.43959    | -0.25022     | -0.86533 | test       |
+| rmse_X    | -1.02487 | -1.37637 | -1.85994    | -0.36367     | -0.32948 | test       |
+| rmse_pure | -0.92767 | -0.48026 | -0.43660    | -0.20271     | -0.59490 | test       |
+:end:
+
+- horrible lot extrapolations 
+- mix scoring
+- harder to predict PBErel and EXP in general
+- no specific mix type is harder to predict when a fidelity is absent
+
+** HPO loop
+These cells archive the optimization process, running them is not
+necessary. The result is saved in the notebook at *Best Model*
+*** -- Iteratively Optimize Hyperparameters
+**** 1. construct original Hyper-parameter Space
+#+begin_src jupyter-python
+  grid = [
+      {# 'columntransformer__comp__normalizer__copy': True,
+       'columntransformer__comp__normalizer__norm': ['l1', 'l2', 'max'],
+       # 'columntransformer__comp__minmaxscaler__clip': False,
+       # 'columntransformer__comp__minmaxscaler__copy': True,
+       # 'columntransformer__comp__minmaxscaler__feature_range': (0, 1),
+       # 'columntransformer__prop__standardscaler__copy': True,
+       # 'columntransformer__prop__standardscaler__with_mean': True,
+       # 'columntransformer__prop__standardscaler__with_std': True,
+       # 'columntransformer__prop__minmaxscaler__clip': False,
+       # 'columntransformer__prop__minmaxscaler__copy': True,
+       # 'columntransformer__prop__minmaxscaler__feature_range': (0, 1),
+       'randomforestregressor__bootstrap': [True], #build each tree from sample
+       'randomforestregressor__ccp_alpha': [0.0, 0.002], #cost-complexity pruning
+       'randomforestregressor__criterion': ['squared_error', 'absolute_error', 'poisson'],
+       #'randomforestregressor__maxBins:': [256], #sklearnex
+       'randomforestregressor__max_depth': [25, 20], #investigate dept of constituent trees, limit
+       'randomforestregressor__max_features': [1.0, 3, 5], #split after considering
+       'randomforestregressor__max_leaf_nodes': [750, 800], #see depth exploration in DT notes
+       'randomforestregressor__max_samples': [0.9, 0.6, 0.3], #frac to bag
+       # 'randomforestregressor__minBinSize': [1], #sklearnex
+       'randomforestregressor__min_impurity_decrease': [0.0, 0.3], #0.3 corresponds to the onset of aggressive ccp
+       'randomforestregressor__min_samples_leaf': [1], #just sensible
+       'randomforestregressor__min_samples_split': [2, 5], #
+       'randomforestregressor__min_weight_fraction_leaf': [0.0], #
+       'randomforestregressor__n_estimators': [20, 50, 100],
+       'randomforestregressor__n_jobs': [4], #parallelize exec
+       'randomforestregressor__oob_score': [True], #use out-of-bag samples to validate (faster)
+       'randomforestregressor__random_state': [None], #do not touch
+       'randomforestregressor__verbose': [0], 
+       'randomforestregressor__warm_start': [False] #make a new forest every time (honest)
+       },
+      {'columntransformer__comp__normalizer__norm': ['l1', 'l2', 'max'],
+       'randomforestregressor__bootstrap': [False], #Build each tree from everything
+       'randomforestregressor__ccp_alpha': [0.0, 0.002], #cost-complexity pruning
+       'randomforestregressor__criterion': ['squared_error', 'absolute_error', 'poisson'], #variance reductions vs deviance reduction
+       #'randomforestregressor__maxBins:': [256],
+       'randomforestregressor__max_depth': [25, 20], #investigate dept of constituent trees, limit
+       'randomforestregressor__max_features': [1.0, 3, 5], #split after considering
+       'randomforestregressor__max_leaf_nodes': [750, 800], #see depth exploration in DT notes
+       'randomforestregressor__max_samples': [None], #"bag" everything
+       # 'randomforestregressor__minBinSize': [1],
+       'randomforestregressor__min_impurity_decrease': [0.0, 0.3], #
+       'randomforestregressor__min_samples_leaf': [1], #just sensible
+       'randomforestregressor__min_samples_split': [2, 5], #
+       'randomforestregressor__min_weight_fraction_leaf': [0.0], #
+       'randomforestregressor__n_estimators': [20, 50, 100],
+       'randomforestregressor__n_jobs': [4], #parallelize exec
+       #oob score not available
+       'randomforestregressor__random_state': [None], #do not touch
+       'randomforestregressor__verbose': [0], 
+       'randomforestregressor__warm_start': [False] #make a new forest every time (honest)
+       }
+  ]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+**** 2.1 Mix meta estimator
+initially, only 3 fold validation is used to save on computation time
+- use =lot_scorings= to examine parameters that improve ability to extrapolate between fidelities
+- use =mix_scorings= to improve ability to predict site-alloy properties 
+#+begin_src jupyter-python
+  cgs = gsCV(estimator=cpipe,
+              param_grid=grid,
+              cv=3, verbose=1, scoring=mix_scorings, refit="r2", return_train_score=True)
+
+  with joblib.parallel_backend('multiprocessing'):
+      cgs.fit(X_tr, Y_tr[target].iloc[:,0])
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+- Time :: Fitting 3 folds for each of 10368 candidates, totalling 31104 fits
+  - about 45 minutes to fit with acceleration
+  - <2 hours without
+- Next :: Determine next Grid Space to explore using =mix_scorings=
+- Objective :: improve ability to generalize between alloy types
+***** Equal Weights In Summary
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+|                          | space_0                                  | space_1                                  | entropy_0 | entropy_1 | scores_0             | scores_1             | next_0                          | next_1                          |
+|--------------------------+------------------------------------------+------------------------------------------+-----------+-----------+----------------------+----------------------+---------------------------------+---------------------------------|
+| normalizer__norm         | [l1, l2, max]                            | [l1, l2, max]                            |  0.853155 |  0.853155 | [19.07, 0.07, 10.74] | [19.07, 0.07, 10.74] | [l1, max]                       | [l1, max]                       |
+| bootstrap                | [True]                                   | [False]                                  |  0.142457 |  0.289120 | [26.18]              | [3.69]               | [True]                          | [False]                         |
+| ccp_alpha                | [0.0, 0.002]                             | [0.0, 0.002]                             |  0.485723 |  0.485723 | [27.33, 2.54]        | [27.33, 2.54]        | [0.0]                           | [0.0]                           |
+| criterion                | [squared_error, absolute_error, poisson] | [squared_error, absolute_error, poisson] |  0.687787 |  0.687787 | [18.12, 11.75, 0.0]  | [18.12, 11.75, 0.0]  | [squared_error, absolute_error] | [squared_error, absolute_error] |
+| max_depth                | [25, 20]                                 | [25, 20]                                 |  0.683604 |  0.683604 | [14.16, 15.72]       | [14.16, 15.72]       | [20]                            | [20]                            |
+| max_features             | [auto, 3, 5]                             | [auto, 3, 5]                             |  0.759206 |  0.759206 | [25.04, 0.06, 4.78]  | [25.04, 0.06, 4.78]  | [auto]                          | [auto]                          |
+| max_leaf_nodes           | [750, 800]                               | [750, 800]                               |  0.692553 |  0.692553 | [14.88, 15.0]        | [14.88, 15.0]        | [800]                           | [800]                           |
+| max_samples              | [0.9, 0.6, 0.3]                          | [None]                                   |  0.812818 |  0.289120 | [21.28, 4.82, 0.09]  | [0.16]               | [0.9]                           | [None]                          |
+| minBinSize               | [1]                                      | [1]                                      | -0.000000 | -0.000000 | NaN                  | NaN                  | [1]                             | [1]                             |
+| min_impurity_decrease    | [0.0, 0.3]                               | [0.0, 0.3]                               | -0.000000 | -0.000000 | NaN                  | NaN                  | [0.0]                           | [0.0]                           |
+| min_samples_leaf         | [1]                                      | [1]                                      | -0.000000 | -0.000000 | NaN                  | NaN                  | [1]                             | [1]                             |
+| min_samples_split        | [2, 5]                                   | [2, 5]                                   |  0.485723 |  0.485723 | [26.1, 3.77]         | [26.1, 3.77]         | [2]                             | [2]                             |
+| min_weight_fraction_leaf | [0.0]                                    | [0.0]                                    | -0.000000 | -0.000000 | NaN                  | NaN                  | [0.0]                           | [0.0]                           |
+| n_estimators             | [20, 50, 100]                            | [20, 50, 100]                            |  1.083522 |  1.083522 | [7.95, 8.22, 13.7]   | [7.95, 8.22, 13.7]   | [100]                           | [100]                           |
+| n_jobs                   | [4]                                      | [4]                                      | -0.000000 | -0.000000 | NaN                  | NaN                  | [4]                             | [4]                             |
+| oob_score                | [True]                                   | NaN                                      |  0.142457 |       NaN | [0.84]               | NaN                  | [True]                          | NaN                             |
+| random_state             | [None]                                   | [None]                                   | -0.000000 | -0.000000 | NaN                  | NaN                  | [None]                          | [None]                          |
+| verbose                  | [0]                                      | [0]                                      | -0.000000 | -0.000000 | NaN                  | NaN                  | [0]                             | [0]                             |
+| warm_start               | [False]                                  | [False]                                  | -0.000000 | -0.000000 | NaN                  | NaN                  | [False]                         | [False]                         |
+
+- l1 normalization is best
+- bootstrapping the regressor is much more performant
+  - 90% sampling is best (rfr improves with more exposure, makes sense)
+  - notice: bootstrap sampling appears to rank only slightly more
+    frequently in the top ten than no-bootstrap, but has much higher
+    scores. suggesting it also dominates the highest ranks in general.
+- max normalization also does well, but not as well
+- squared error does best
+- absolute_error (more expensive) is less susceptible to compromising on extremes, but appears mostly unfavorable
+- limiting tree depth slightly better than not limiting it
+- growth on all features better than growth on few features. larger axis limits yet to be explored
+- unlimited nodes marginally better than limited nodes
+- impurity decrease threshold is ineffective
+- unlimited split granularity better than limited granularity
+- generally, more estimators outperform fewer
+
+***** Double Weighting B scores
+#+begin_src jupyter-python
+  list(map(lambda t: t[0], mix_scorings.items()))
+#+end_src
+
+#+RESULTS:
+:results:
+| r2 | ev | maxerr | rmse | rmse_A | rmse_B | rmse_X | rmse_pure |
+:end:
+
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,2,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+|                          | space_0                                  | space_1                                  | entropy_0 | entropy_1 | scores_0             | scores_1             | next_0                          | next_1                          |
+|--------------------------+------------------------------------------+------------------------------------------+-----------+-----------+----------------------+----------------------+---------------------------------+---------------------------------|
+| normalizer__norm         | [l1, l2, max]                            | [l1, l2, max]                            |  0.853155 |  0.853155 | [21.94, 0.07, 11.25] | [21.94, 0.07, 11.25] | [l1, max]                       | [l1, max]                       |
+| bootstrap                | [True]                                   | [False]                                  |  0.142457 |  0.289120 | [29.47]              | [3.79]               | [True]                          | [False]                         |
+| ccp_alpha                | [0.0, 0.002]                             | [0.0, 0.002]                             |  0.485723 |  0.485723 | [30.68, 2.58]        | [30.68, 2.58]        | [0.0]                           | [0.0]                           |
+| criterion                | [squared_error, absolute_error, poisson] | [squared_error, absolute_error, poisson] |  0.687787 |  0.687787 | [21.39, 11.87, 0.0]  | [21.39, 11.87, 0.0]  | [squared_error, absolute_error] | [squared_error, absolute_error] |
+| max_depth                | [25, 20]                                 | [25, 20]                                 |  0.683604 |  0.683604 | [16.54, 16.72]       | [16.54, 16.72]       | [20]                            | [20]                            |
+| max_features             | [auto, 3, 5]                             | [auto, 3, 5]                             |  0.759206 |  0.759206 | [27.43, 0.06, 5.77]  | [27.43, 0.06, 5.77]  | [auto]                          | [auto]                          |
+| max_leaf_nodes           | [750, 800]                               | [750, 800]                               |  0.692553 |  0.692553 | [17.34, 15.92]       | [17.34, 15.92]       | [750]                           | [750]                           |
+| max_samples              | [0.9, 0.6, 0.3]                          | [None]                                   |  0.812818 |  0.289120 | [22.68, 6.69, 0.09]  | [0.16]               | [0.9]                           | [None]                          |
+| minBinSize               | [1]                                      | [1]                                      | -0.000000 | -0.000000 | NaN                  | NaN                  | [1]                             | [1]                             |
+| min_impurity_decrease    | [0.0, 0.3]                               | [0.0, 0.3]                               | -0.000000 | -0.000000 | NaN                  | NaN                  | [0.0]                           | [0.0]                           |
+| min_samples_leaf         | [1]                                      | [1]                                      | -0.000000 | -0.000000 | NaN                  | NaN                  | [1]                             | [1]                             |
+| min_samples_split        | [2, 5]                                   | [2, 5]                                   |  0.485723 |  0.485723 | [28.39, 4.87]        | [28.39, 4.87]        | [2]                             | [2]                             |
+| min_weight_fraction_leaf | [0.0]                                    | [0.0]                                    | -0.000000 | -0.000000 | NaN                  | NaN                  | [0.0]                           | [0.0]                           |
+| n_estimators             | [20, 50, 100]                            | [20, 50, 100]                            |  1.083522 |  1.083522 | [9.59, 8.5, 15.18]   | [9.59, 8.5, 15.18]   | [100]                           | [100]                           |
+| n_jobs                   | [4]                                      | [4]                                      | -0.000000 | -0.000000 | NaN                  | NaN                  | [4]                             | [4]                             |
+| oob_score                | [True]                                   | NaN                                      |  0.142457 |       NaN | [0.84]               | NaN                  | [True]                          | NaN                             |
+| random_state             | [None]                                   | [None]                                   | -0.000000 | -0.000000 | NaN                  | NaN                  | [None]                          | [None]                          |
+| verbose                  | [0]                                      | [0]                                      | -0.000000 | -0.000000 | NaN                  | NaN                  | [0]                             | [0]                             |
+| warm_start               | [False]                                  | [False]                                  | -0.000000 | -0.000000 | NaN                  | NaN                  | [False]                         | [False]                         |
+
+- gap between limited and unlimited tree depth closes slightly
+- limited leaf nodes becomes more favorable than unlimited leaf nodes -- reversal!
+- 20 estimators actually ranks much higher. less averaging => more bias helps B
+
+**** 2.2 LoT meta estimator
+#+begin_src jupyter-python
+  cgs = gsCV(estimator=cpipe,
+              param_grid=grid,
+              cv=3, verbose=1, scoring=lot_scorings, refit="r2", return_train_score=True)
+
+  with joblib.parallel_backend('multiprocessing'):
+      cgs.fit(X_tr, Y_tr[target].iloc[:,0])
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+- Time :: Fitting 3 folds for each of 10368 candidates, totalling 31104 fits
+  - about 45 minutes to fit with acceleration
+  - <2 hours without
+- Goal :: Determine next Grid Space to explore using =lot_scorings=
+- Objective :: improve ability to generalize between levels of theory
+***** Equal Weights In Summary
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+|                          | space_0                                  | space_1                                  | entropy_0 | entropy_1 | scores_0             |             scores_1 | next_0                    | next_1                    |
+|--------------------------+------------------------------------------+------------------------------------------+-----------+-----------+----------------------+----------------------+---------------------------+---------------------------|
+| comp__normalizer__norm   | [l1, l2, max]                            | [l1, l2, max]                            |  1.007479 |  1.007479 | [6.93, 19.52, 7.2]   |   [6.93, 19.52, 7.2] | [l2]                      | [l2]                      |
+| bootstrap                | [True]                                   | [False]                                  | -0.000000 |  0.000000 | NaN                  |                  NaN | [True]                    | [False]                   |
+| ccp_alpha                | [0.0, 0.002]                             | [0.0, 0.002]                             |  0.321466 |  0.321466 | [31.25, 2.4]         |         [31.25, 2.4] | [0.0]                     | [0.0]                     |
+| criterion                | [squared_error, absolute_error, poisson] | [squared_error, absolute_error, poisson] |  1.090940 |  1.090940 | [8.6, 13.3, 11.75]   |   [8.6, 13.3, 11.75] | [absolute_error, poisson] | [absolute_error, poisson] |
+| max_depth                | [25, 20]                                 | [25, 20]                                 |  0.693013 |  0.693013 | [17.37, 16.28]       |       [17.37, 16.28] | [25]                      | [25]                      |
+| max_features             | [auto, 3, 5]                             | [auto, 3, 5]                             |  0.446137 |  0.446137 | [30.54, 3.11, 0.0]   |   [30.54, 3.11, 0.0] | [auto]                    | [auto]                    |
+| max_leaf_nodes           | [750, 800]                               | [750, 800]                               |  0.682223 |  0.682223 | [20.38, 13.27]       |       [20.38, 13.27] | [750]                     | [750]                     |
+| max_samples              | [0.9, 0.6, 0.3]                          | [None]                                   |  0.748969 |  0.000000 | [27.31, 4.36, 1.98]  |                  NaN | [0.9]                     | [None]                    |
+| min_impurity_decrease    | [0.0, 0.3]                               | [0.0, 0.3]                               | -0.000000 | -0.000000 | NaN                  |                  NaN | [0.0]                     | [0.0]                     |
+| min_samples_leaf         | [1]                                      | [1]                                      | -0.000000 | -0.000000 | NaN                  |                  NaN | [1]                       | [1]                       |
+| min_samples_split        | [2, 5]                                   | [2, 5]                                   |  0.538681 |  0.538681 | [30.0, 3.65]         |         [30.0, 3.65] | [2]                       | [2]                       |
+| min_weight_fraction_leaf | [0.0]                                    | [0.0]                                    | -0.000000 | -0.000000 | NaN                  |                  NaN | [0.0]                     | [0.0]                     |
+| n_estimators             | [20, 50, 100]                            | [20, 50, 100]                            |  1.063482 |  1.063482 | [4.78, 13.83, 15.05] | [4.78, 13.83, 15.05] | [50, 100]                 | [50, 100]                 |
+| n_jobs                   | [4]                                      | [4]                                      | -0.000000 | -0.000000 | NaN                  |                  NaN | [4]                       | [4]                       |
+| oob_score                | [True]                                   | NaN                                      | -0.000000 |       NaN | NaN                  |                  NaN | [True]                    | NaN                       |
+| random_state             | [None]                                   | [None]                                   | -0.000000 | -0.000000 | NaN                  |                  NaN | [None]                    | [None]                    |
+| verbose                  | [0]                                      | [0]                                      | -0.000000 | -0.000000 | NaN                  |                  NaN | [0]                       | [0]                       |
+| warm_start               | [False]                                  | [False]                                  | -0.000000 | -0.000000 | NaN                  |                  NaN | [False]                   | [False]                   |
+
+***** Double Weighting EXP scores
+#+begin_src jupyter-python
+  list(map(lambda t: t[0], lot_scorings.items()))
+#+end_src
+
+#+RESULTS:
+:results:
+| r2 | ev | maxerr | rmse | rmse_EXP | rmse_PBE | rmse_HSE | rmse_HSE(SOC) | rmse_HSE-PBE(SOC) |
+:end:
+
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,2,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+|                          | space_0                                  | space_1                                  | entropy_0 | entropy_1 | scores_0                 |                 scores_1 | next_0           | next_1           |
+|--------------------------+------------------------------------------+------------------------------------------+-----------+-----------+--------------------------+--------------------------+------------------+------------------|
+| comp__normalizer__norm   | [l1, l2, max]                            | [l1, l2, max]                            |  1.007479 |  1.007479 | [9.13, 389034.52, 7.68]  |  [9.13, 389034.52, 7.68] | [l2]             | [l2]             |
+| bootstrap                | [True]                                   | [False]                                  | -0.000000 |  0.000000 | NaN                      |                      NaN | [True]           | [False]          |
+| ccp_alpha                | [0.0, 0.002]                             | [0.0, 0.002]                             |  0.321466 |  0.321466 | [34.69, 227230.1]        |        [34.69, 227230.1] | [0.002]          | [0.002]          |
+| criterion                | [squared_error, absolute_error, poisson] | [squared_error, absolute_error, poisson] |  1.090940 |  1.090940 | [9.69, 149287.38, 11.87] | [9.69, 149287.38, 11.87] | [absolute_error] | [absolute_error] |
+| max_depth                | [25, 20]                                 | [25, 20]                                 |  0.693013 |  0.693013 | [19.88, 280724.51]       |       [19.88, 280724.51] | [20]             | [20]             |
+| max_features             | [auto, 3, 5]                             | [auto, 3, 5]                             |  0.446137 |  0.446137 | [33.97, 369067.16, 0.0]  |  [33.97, 369067.16, 0.0] | [3]              | [3]              |
+| max_leaf_nodes           | [750, 800]                               | [750, 800]                               |  0.682223 |  0.682223 | [21.66, 155052.43]       |       [21.66, 155052.43] | [800]            | [800]            |
+| max_samples              | [0.9, 0.6, 0.3]                          | [None]                                   |  0.748969 |  0.000000 | [29.71, 138250.16, 1.98] |                      NaN | [0.6]            | [None]           |
+| min_impurity_decrease    | [0.0, 0.3]                               | [0.0, 0.3]                               | -0.000000 | -0.000000 | NaN                      |                      NaN | [0.0]            | [0.0]            |
+| min_samples_leaf         | [1]                                      | [1]                                      | -0.000000 | -0.000000 | NaN                      |                      NaN | [1]              | [1]              |
+| min_samples_split        | [2, 5]                                   | [2, 5]                                   |  0.538681 |  0.538681 | [32.55, 209757.23]       |       [32.55, 209757.23] | [5]              | [5]              |
+| min_weight_fraction_leaf | [0.0]                                    | [0.0]                                    | -0.000000 | -0.000000 | NaN                      |                      NaN | [0.0]            | [0.0]            |
+| n_estimators             | [20, 50, 100]                            | [20, 50, 100]                            |  1.063482 |  1.063482 | [5.79, 123973.39, 16.18] | [5.79, 123973.39, 16.18] | [50]             | [50]             |
+| n_jobs                   | [4]                                      | [4]                                      | -0.000000 | -0.000000 | NaN                      |                      NaN | [4]              | [4]              |
+| oob_score                | [True]                                   | NaN                                      | -0.000000 |       NaN | NaN                      |                      NaN | [True]           | NaN              |
+| random_state             | [None]                                   | [None]                                   | -0.000000 | -0.000000 | NaN                      |                      NaN | [None]           | [None]           |
+| verbose                  | [0]                                      | [0]                                      | -0.000000 | -0.000000 | NaN                      |                      NaN | [0]              | [0]              |
+| warm_start               | [False]                                  | [False]                                  | -0.000000 | -0.000000 | NaN                      |                      NaN | [False]          | [False]          |
+
+*** -- Iteratively Optimize Hyperparameters
+**** 1. construct subsequent HP space
+next_grid helps set up the next exhaustive search
+- l1 normalization is chosen
+- bootstrapping is chosen
+- squared and absolute error compete again
+- depth limits are broadened -- explore strong limits and no limits
+- larger feature access limits are tried
+- strong limits on leaf notes are tried along with no limits and moderate limits
+- recommendations taken for others
+
+#+begin_src jupyter-python
+  grid = [
+      {'columntransformer__comp__normalizer__norm': ['l2'],
+       'randomforestregressor__bootstrap': [True],
+       'randomforestregressor__ccp_alpha': [0.0],
+       'randomforestregressor__criterion': ['squared_error', 'absolute_error'],
+       'randomforestregressor__max_depth': [15, 20, None], #broadening search
+       'randomforestregressor__max_features': [1.0, 10], #larger limit
+       'randomforestregressor__max_leaf_nodes': [700, 800, None], #broadening search
+       'randomforestregressor__max_samples': [0.9], #gives bootstrapping it's best chance
+       # 'randomforestregressor__minBinSize': [1],
+       'randomforestregressor__min_impurity_decrease': [0.0],
+       'randomforestregressor__min_samples_leaf': [1],
+       'randomforestregressor__min_samples_split': [2],
+       'randomforestregressor__min_weight_fraction_leaf': [0.0],
+       'randomforestregressor__n_estimators': [50, 100, 150], #broadening search
+       'randomforestregressor__n_jobs': [4],
+       'randomforestregressor__oob_score': [True],
+       'randomforestregressor__random_state': [None],
+       'randomforestregressor__verbose': [0],
+       'randomforestregressor__warm_start': [False]},
+  ]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+**** 2.1 Mix meta estimator
+#+begin_src jupyter-python
+  cgs = gsCV(estimator=cpipe,
+              param_grid=grid,
+              cv=3, verbose=1, scoring=mix_scorings, refit="r2", return_train_score=True)
+
+  with joblib.parallel_backend('multiprocessing'):
+      cgs.fit(X_tr, Y_tr[target].iloc[:,0])
+#+end_src
+
+#+RESULTS:
+:results:
+: Fitting 3 folds for each of 108 candidates, totalling 324 fits
+:end:
+
+Fitting 3 folds for each of 108 candidates, totalling 324 fits -- just a few minutes
+
+- Time :: Fitting 3 folds for each of 108 candidates, totalling 324 fits
+- Next :: Determine next Grid Space to explore using =mix_scorings=
+- Objective :: improve ability to generalize between alloy types
+***** Equal Weights In Summary
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+|                          | space_0                         | entropy_0 |             scores_0 | next_0           |
+|--------------------------+---------------------------------+-----------+----------------------+------------------|
+| comp__normalizer__norm   | [l2]                            | -0.000000 |                  NaN | [l2]             |
+| bootstrap                | [True]                          | -0.000000 |                  NaN | [True]           |
+| ccp_alpha                | [0.0]                           | -0.000000 |                  NaN | [0.0]            |
+| criterion                | [squared_error, absolute_error] |  0.357627 |         [1.3, 29.58] | [absolute_error] |
+| max_depth                | [15, 20, None]                  |  1.079875 | [10.39, 12.28, 0.31] | [15, 20]         |
+| max_features             | [1.0, 10]                       | -0.000000 |                  NaN | [1.0]            |
+| max_leaf_nodes           | [700, 800, None]                |  1.088010 |  [9.34, 12.34, 0.38] | [700, 800]       |
+| max_samples              | [0.9]                           | -0.000000 |                  NaN | [0.9]            |
+| min_impurity_decrease    | [0.0]                           | -0.000000 |                  NaN | [0.0]            |
+| min_samples_leaf         | [1]                             | -0.000000 |                  NaN | [1]              |
+| min_samples_split        | [2]                             | -0.000000 |                  NaN | [2]              |
+| min_weight_fraction_leaf | [0.0]                           | -0.000000 |                  NaN | [0.0]            |
+| n_estimators             | [50, 100, 150]                  |  1.092831 |  [10.4, 7.71, 12.77] | [50, 150]        |
+| n_jobs                   | [4]                             | -0.000000 |                  NaN | [4]              |
+| oob_score                | [True]                          | -0.000000 |                  NaN | [True]           |
+| random_state             | [None]                          | -0.000000 |                  NaN | [None]           |
+| verbose                  | [0]                             | -0.000000 |                  NaN | [0]              |
+| warm_start               | [False]                         | -0.000000 |                  NaN | [False]          |
+
+- absolute error is definitely performant
+- strong limits on depth perform better than unlimited depth -- limits tree bias
+- unlimited feature access still better than fewer
+- limited nodes actually outperforms unlimited. less aggressive limits are better
+- 150 estimators outperforms 100
+  
+more heavily weighting B scores make no change to interpretation
+
+**** 2.2 LoT meta estimator
+#+begin_src jupyter-python
+  cgs = gsCV(estimator=cpipe,
+              param_grid=grid,
+              cv=3, verbose=1, scoring=lot_scorings, refit="r2", return_train_score=True)
+
+  with joblib.parallel_backend('multiprocessing'):
+      cgs.fit(X_tr, Y_tr[target].iloc[:,0])
+#+end_src
+
+#+RESULTS:
+:results:
+: Fitting 3 folds for each of 108 candidates, totalling 324 fits
+:end:
+
+- Time :: Fitting 3 folds for each of 10368 candidates, totalling 31104 fits
+  - about 45 minutes to fit with acceleration
+  - <2 hours without
+- Goal :: Determine next Grid Space to explore using =lot_scorings=
+- Objective :: improve ability to generalize between levels of theory
+***** Equal Weights In Summary
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+|                          | space_0                         | entropy_0 |             scores_0 | next_0           |
+|--------------------------+---------------------------------+-----------+----------------------+------------------|
+| comp__normalizer__norm   | [l2]                            | -0.000000 |                  NaN | [l2]             |
+| bootstrap                | [True]                          | -0.000000 |                  NaN | [True]           |
+| ccp_alpha                | [0.0]                           | -0.000000 |                  NaN | [0.0]            |
+| criterion                | [squared_error, absolute_error] |  0.661563 |         [6.38, 28.9] | [absolute_error] |
+| max_depth                | [15, 20, None]                  |  1.079588 |  [7.94, 17.46, 0.34] | [20]             |
+| max_features             | [1.0, 10]                       | -0.000000 |                  NaN | [1.0]            |
+| max_leaf_nodes           | [700, 800, None]                |  1.091650 | [13.27, 12.28, 0.34] | [700, 800]       |
+| max_samples              | [0.9]                           | -0.000000 |                  NaN | [0.9]            |
+| min_impurity_decrease    | [0.0]                           | -0.000000 |                  NaN | [0.0]            |
+| min_samples_leaf         | [1]                             | -0.000000 |                  NaN | [1]              |
+| min_samples_split        | [2]                             | -0.000000 |                  NaN | [2]              |
+| min_weight_fraction_leaf | [0.0]                           | -0.000000 |                  NaN | [0.0]            |
+| n_estimators             | [50, 100, 150]                  |  1.086198 | [8.33, 10.59, 16.36] | [150]            |
+| n_jobs                   | [4]                             | -0.000000 |                  NaN | [4]              |
+| oob_score                | [True]                          | -0.000000 |                  NaN | [True]           |
+| random_state             | [None]                          | -0.000000 |                  NaN | [None]           |
+| verbose                  | [0]                             | -0.000000 |                  NaN | [0]              |
+| warm_start               | [False]                         | -0.000000 |                  NaN | [False]          |
+
+- absolute error is definitely performant
+- weaker limits on depth perform better than unlimited depth and very limited depth
+- unlimited feature access still better than fewer
+- limited nodes actually outperforms unlimited. more aggressive limits are slightly better
+- 150 estimators best
+  
+more heavily weighting EXP scores make no change to interpretation
+
+*** -- Iteratively Optimize Hyperparameters
+**** 1. construct subsequent HP space
+#+begin_src jupyter-python
+  grid = [
+      {'columntransformer__comp__normalizer__norm': ['l2'],
+       'randomforestregressor__bootstrap': [True],
+       'randomforestregressor__ccp_alpha': [0.0],
+       'randomforestregressor__criterion': ['absolute_error'],
+       'randomforestregressor__max_depth': [20],
+       'randomforestregressor__max_features': [1.0],
+       'randomforestregressor__max_leaf_nodes': [700, 750, 800],
+       'randomforestregressor__max_samples': [0.9],
+       'randomforestregressor__min_impurity_decrease': [0.0],
+       'randomforestregressor__min_samples_leaf': [1],
+       'randomforestregressor__min_samples_split': [2],
+       'randomforestregressor__min_weight_fraction_leaf': [0.0],
+       'randomforestregressor__n_estimators': [150, 200],
+       'randomforestregressor__n_jobs': [4],
+       'randomforestregressor__oob_score': [True],
+       'randomforestregressor__random_state': [None],
+       'randomforestregressor__verbose': [0],
+       'randomforestregressor__warm_start': [False]}
+  ]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+**** 2.1 Mix meta estimator
+#+begin_src jupyter-python
+  cgs = gsCV(estimator=cpipe,
+              param_grid=grid,
+              cv=3, verbose=1, scoring=mix_scorings, refit="r2", return_train_score=True)
+
+  with joblib.parallel_backend('multiprocessing'):
+      cgs.fit(X_tr, Y_tr[target].iloc[:,0])
+#+end_src
+
+#+RESULTS:
+:results:
+: Fitting 3 folds for each of 6 candidates, totalling 18 fits
+:end:
+
+- Next :: Determine next Grid Space to explore using =mix_scorings=
+- Objective :: improve ability to generalize between alloy types
+***** Equal Weights In Summary
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+|                                                 | space_0          | entropy_0 | scores_0           | next_0           |
+|-------------------------------------------------+------------------+-----------+--------------------+------------------|
+| columntransformer__comp__normalizer__norm       | [l2]             | -0.000000 | NaN                | [l2]             |
+| randomforestregressor__bootstrap                | [True]           | -0.000000 | NaN                | [True]           |
+| randomforestregressor__ccp_alpha                | [0.0]            | -0.000000 | NaN                | [0.0]            |
+| randomforestregressor__criterion                | [absolute_error] | -0.000000 | NaN                | [absolute_error] |
+| randomforestregressor__max_depth                | [20]             | -0.000000 | NaN                | [20]             |
+| randomforestregressor__max_features             | [1.0]            | -0.000000 | NaN                | [1.0]            |
+| randomforestregressor__max_leaf_nodes           | [700, 750, 800]  | 1.098612  | [5.95, 6.32, 9.45] | [800]            |
+| randomforestregressor__max_samples              | [0.9]            | -0.000000 | NaN                | [0.9]            |
+| randomforestregressor__min_impurity_decrease    | [0.0]            | -0.000000 | NaN                | [0.0]            |
+| randomforestregressor__min_samples_leaf         | [1]              | -0.000000 | NaN                | [1]              |
+| randomforestregressor__min_samples_split        | [2]              | -0.000000 | NaN                | [2]              |
+| randomforestregressor__min_weight_fraction_leaf | [0.0]            | -0.000000 | NaN                | [0.0]            |
+| randomforestregressor__n_estimators             | [150, 200]       | 0.693147  | [7.37, 14.35]      | [200]            |
+| randomforestregressor__n_jobs                   | [4]              | -0.000000 | NaN                | [4]              |
+| randomforestregressor__oob_score                | [True]           | -0.000000 | NaN                | [True]           |
+| randomforestregressor__random_state             | [None]           | -0.000000 | NaN                | [None]           |
+| randomforestregressor__verbose                  | [0]              | -0.000000 | NaN                | [0]              |
+| randomforestregressor__warm_start               | [False]          | -0.000000 | NaN                | [False]          |
+:end:
+
+- model sensitive to leaf node limits and number of estimators
+- proceed to sensitivity analysis.
+
+**** 2.2 LoT meta estimator
+#+begin_src jupyter-python
+  cgs = gsCV(estimator=cpipe,
+              param_grid=grid,
+              cv=3, verbose=1, scoring=lot_scorings, refit="r2", return_train_score=True)
+
+  with joblib.parallel_backend('multiprocessing'):
+      cgs.fit(X_tr, Y_tr[target].iloc[:,0])
+#+end_src
+
+#+RESULTS:
+:results:
+: Fitting 3 folds for each of 6 candidates, totalling 18 fits
+:end:
+
+- Goal :: Determine next Grid Space to explore using =lot_scorings=
+- Objective :: improve ability to generalize between levels of theory
+***** Equal Weights In Summary
+#+begin_src jupyter-python
+  summary, next_grid = summarize_HPO(cgs, grid, topN=10, metric_weights=[1,1,1,1,1,1,1,1,1], strategy="oavg")
+  summary
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+|                          | space_0                         | entropy_0 |             scores_0 | next_0           |
+|--------------------------+---------------------------------+-----------+----------------------+------------------|
+| comp__normalizer__norm   | [l2]                            | -0.000000 |                  NaN | [l2]             |
+| bootstrap                | [True]                          | -0.000000 |                  NaN | [True]           |
+| ccp_alpha                | [0.0]                           | -0.000000 |                  NaN | [0.0]            |
+| criterion                | [squared_error, absolute_error] |  0.661563 |         [6.38, 28.9] | [absolute_error] |
+| max_depth                | [15, 20, None]                  |  1.079588 |  [7.94, 17.46, 0.34] | [20]             |
+| max_features             | [1.0, 10]                       | -0.000000 |                  NaN | [1.0]            |
+| max_leaf_nodes           | [700, 800, None]                |  1.091650 | [13.27, 12.28, 0.34] | [700, 800]       |
+| max_samples              | [0.9]                           | -0.000000 |                  NaN | [0.9]            |
+| min_impurity_decrease    | [0.0]                           | -0.000000 |                  NaN | [0.0]            |
+| min_samples_leaf         | [1]                             | -0.000000 |                  NaN | [1]              |
+| min_samples_split        | [2]                             | -0.000000 |                  NaN | [2]              |
+| min_weight_fraction_leaf | [0.0]                           | -0.000000 |                  NaN | [0.0]            |
+| n_estimators             | [50, 100, 150]                  |  1.086198 | [8.33, 10.59, 16.36] | [150]            |
+| n_jobs                   | [4]                             | -0.000000 |                  NaN | [4]              |
+| oob_score                | [True]                          | -0.000000 |                  NaN | [True]           |
+| random_state             | [None]                          | -0.000000 |                  NaN | [None]           |
+| verbose                  | [0]                             | -0.000000 |                  NaN | [0]              |
+| warm_start               | [False]                         | -0.000000 |                  NaN | [False]          |
+
+- absolute error is definitely performant
+- weaker limits on depth perform better than unlimited depth and very limited depth
+- unlimited feature access still better than fewer
+- limited nodes actually outperforms unlimited. more aggressive limits are slightly better
+- 150 estimators best
+  
+more heavily weighting EXP scores make no change to interpretation
+
+*** Perform sensitivity analysis for n_estimators in optimal subspace
+plot a validation curve while fixing other tree parameters.
+
+Adjusting the ensemble size to fit the tree optimizations is not as
+much a sensible use of the RFR architecture's strengths, so
+n_estimators makes more sense to optimize first
+**** 1. construct subsequent HP space
+#+begin_src jupyter-python
+  grid =   [
+      {'columntransformer__comp__normalizer__norm': ['l2'],
+       'randomforestregressor__bootstrap': [True],
+       'randomforestregressor__ccp_alpha': [0.0],
+       'randomforestregressor__criterion': ['absolute_error'],
+       'randomforestregressor__max_depth': [20],
+       'randomforestregressor__max_features': [1.0],
+       'randomforestregressor__max_leaf_nodes': [800],
+       'randomforestregressor__max_samples': [0.9],
+       'randomforestregressor__min_impurity_decrease': [0.0],
+       'randomforestregressor__min_samples_leaf': [1],
+       'randomforestregressor__min_samples_split': [2],
+       'randomforestregressor__min_weight_fraction_leaf': [0.0],
+       'randomforestregressor__n_estimators': [200],
+       'randomforestregressor__n_jobs': [4],
+       'randomforestregressor__oob_score': [True],
+       'randomforestregressor__random_state': [None],
+       'randomforestregressor__verbose': [0],
+       'randomforestregressor__warm_start': [False]
+       }
+  ]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  cpipe = cpipe.set_params(**{k:v[0] for k,v in grid[0].items()})
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+  
+**** n_estimators validation scan
+using the 4 fold cross validation established by the LC analysis
+#+begin_src jupyter-python
+  param_name='randomforestregressor__n_estimators'
+  with joblib.parallel_backend('multiprocessing'):
+    VC = pvc(validation_curve, cpipe, X_tr, Y_tr[target].iloc[:,0],
+             param_name=param_name, param_range=np.linspace(50, 250, 15).astype(int), cv=4, scoring=lot_scorings)
+#+end_src
+    
+#+begin_src jupyter-python
+  vc = VC.melt(id_vars=["partition"], ignore_index=False).reset_index()
+  vc = vc.groupby(['score','partition',param_name]).aggregate({'value':['mean','std']}).reset_index()
+  vc.columns = ["".join(column) for column in vc.columns.to_flat_index()]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python :file ../ValidationCurves/rfr_t_bg_n_est.svg
+  # mask = lc.score.str.contains('rmse|r2')
+  # lc = lc[mask]
+  p = px.line(vc, x=param_name, y='valuemean', error_y='valuestd',
+              facet_col='score', facet_col_wrap=3, color='partition',
+              height=600, width=900, 
+              facet_row_spacing=0.06,
+              facet_col_spacing=0.05)
+  p.update_layout(font_family='arial narrow', font_size=15,
+                  hovermode='x')
+  p.update_yaxes(matches=None, showticklabels=True)
+  # p.update_xaxes(showticklabels=True, row=2, col=3)
+  p.for_each_yaxis(lambda a: a.update(title_text=a.title.text[:-4] if a.title.text else None))
+  p.for_each_xaxis(lambda a: a.update(title_text=a.title.text.replace("_", " ") if a.title.text else None))
+  p.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1].replace("_", " ")))
+  p.show(renderer='svg')
+#+end_src
+
+#+RESULTS:
+:results:
+[[file:../ValidationCurves/rfr_t_bg_n_est.svg]]
+:end:
+
+- Model scores in this parameter subspace appear to be insensitive to n_estimators. This is a pleasant surprise.
+- maxerror is consistently better at greater n_estimators
+  - unsurprisingly better at weighting outliers
+  - not worth the training expense
+
+*** Perform sensitivity analysis for max_leaf_nodes in optimal subspace
+plot a validation curve while fixing other tree parameters.
+**** 1. construct subsequent HP space
+#+begin_src jupyter-python
+  grid =   [
+      {'columntransformer__comp__normalizer__norm': ['l2'],
+       'randomforestregressor__bootstrap': [True],
+       'randomforestregressor__ccp_alpha': [0.0],
+       'randomforestregressor__criterion': ['absolute_error'],
+       'randomforestregressor__max_depth': [20],
+       'randomforestregressor__max_features': [1.0],
+       'randomforestregressor__max_leaf_nodes': [800],
+       'randomforestregressor__max_samples': [0.9],
+       'randomforestregressor__min_impurity_decrease': [0.0],
+       'randomforestregressor__min_samples_leaf': [1],
+       'randomforestregressor__min_samples_split': [2],
+       'randomforestregressor__min_weight_fraction_leaf': [0.0],
+       'randomforestregressor__n_estimators': [160],
+       'randomforestregressor__n_jobs': [4],
+       'randomforestregressor__oob_score': [True],
+       'randomforestregressor__random_state': [None],
+       'randomforestregressor__verbose': [0],
+       'randomforestregressor__warm_start': [False]
+       }
+  ]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  cpipe = cpipe.set_params(**{k:v[0] for k,v in grid[0].items()})
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+  
+**** max_leaf_nodes validation scan
+using the 4 fold cross validation established by the LC analysis
+#+begin_src jupyter-python
+  param_name='randomforestregressor__max_leaf_nodes'
+  with joblib.parallel_backend('multiprocessing'):
+    VC = pvc(validation_curve, cpipe, X_tr, Y_tr[target].iloc[:,0],
+             param_name=param_name, param_range=np.linspace(650, 850, 15).astype(int), cv=4, scoring=lot_scorings)
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+    
+#+begin_src jupyter-python
+  vc = VC.melt(id_vars=["partition"], ignore_index=False).reset_index()
+  vc = vc.groupby(['score','partition',param_name]).aggregate({'value':['mean','std']}).reset_index()
+  vc.columns = ["".join(column) for column in vc.columns.to_flat_index()]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python :file ../ValidationCurves/rfr_t_bg_maxlnodes.svg
+  # mask = lc.score.str.contains('rmse|r2')
+  # lc = lc[mask]
+  p = px.line(vc, x=param_name, y='valuemean', error_y='valuestd',
+              facet_col='score', facet_col_wrap=3, color='partition',
+              height=600, width=900, 
+              facet_row_spacing=0.06,
+              facet_col_spacing=0.05)
+  p.update_layout(font_family='arial narrow', font_size=15,
+                  hovermode='x')
+  p.update_yaxes(matches=None, showticklabels=True)
+  # p.update_xaxes(showticklabels=True, row=2, col=3)
+  p.for_each_yaxis(lambda a: a.update(title_text=a.title.text[:-4] if a.title.text else None))
+  p.for_each_xaxis(lambda a: a.update(title_text=a.title.text.replace("_", " ") if a.title.text else None))
+  p.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1].replace("_", " ")))
+  p.show(renderer='svg')
+#+end_src
+
+#+RESULTS:
+:results:
+[[file:../ValidationCurves/rfr_t_bg_maxlnodes.svg]]
+:end:
+
+- lot_scoring appears to be insensitive to be mostly insensitive to max_leaf_nodes
+- maxerror appears to be responsible for the improved performances of higher max-node cutoffs
+  - not worth the training expense
+
+** Best Model
+*** Parametrize
+#+begin_src jupyter-python
+  grid =   [
+      {'columntransformer__comp__normalizer__norm': ['l2'],
+       'randomforestregressor__bootstrap': [True],
+       'randomforestregressor__ccp_alpha': [0.0],
+       'randomforestregressor__criterion': ['absolute_error'],
+       'randomforestregressor__max_depth': [20],
+       'randomforestregressor__max_features': [1.0],
+       'randomforestregressor__max_leaf_nodes': [750],
+       'randomforestregressor__max_samples': [0.9],
+       'randomforestregressor__min_impurity_decrease': [0.0],
+       'randomforestregressor__min_samples_leaf': [1],
+       'randomforestregressor__min_samples_split': [2],
+       'randomforestregressor__min_weight_fraction_leaf': [0.0],
+       'randomforestregressor__n_estimators': [160],
+       'randomforestregressor__n_jobs': [4],
+       'randomforestregressor__oob_score': [True],
+       'randomforestregressor__random_state': [None],
+       'randomforestregressor__verbose': [0],
+       'randomforestregressor__warm_start': [False]
+       }
+  ]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+*** Train Final Estimator
+#+begin_src jupyter-python
+  cpipe = cpipe.set_params(**{k:v[0] for k,v in grid[0].items()})
+  cpipe.fit(X_tr, Y_tr[target].iloc[:,0]) #ravel 1D input
+#+end_src
+
+#+RESULTS:
+:results:
+#+begin_example
+  Pipeline(steps=[('columntransformer',
+                   ColumnTransformer(transformers=[('comp',
+                                                    Pipeline(steps=[('simpleimputer',
+                                                                     SimpleImputer(fill_value=0.0,
+                                                                                   strategy='constant')),
+                                                                    ('normalizer',
+                                                                     Normalizer()),
+                                                                    ('minmaxscaler',
+                                                                     MinMaxScaler())]),
+                                                    Index(['('A', 'Cs')', '('A', 'FA')', '('A', 'K')', '('A', 'MA')',
+         '('A', 'Rb')', '('B', 'Ba')', '('B', 'Ca')', '('B', 'Ge')',
+         '('B', 'Pb')', '('B...
+         '('X', 'Heat_of_fusion_kJ/mol')', '('X', 'Heat_of_vap_kJ/mol')',
+         '('X', 'En')', '('X', 'at_num')', '('X', 'period')'],
+        dtype='object')),
+                                                   ('cat',
+                                                    OneHotEncoder(handle_unknown='ignore'),
+                                                    Index(['LoT'], dtype='object'))])),
+                  ('randomforestregressor',
+                   RandomForestRegressor(criterion='absolute_error', max_depth=20,
+                                         max_leaf_nodes=750, max_samples=0.9,
+                                         n_estimators=160, n_jobs=4,
+                                         oob_score=True))])
+#+end_example
+:end:
+
+*** evaluate  
+#+begin_src jupyter-python :file ../ParityPlots/rfr_t_bg.svg
+  p, data = parityplot(cpipe,
+                       X_tr, Y_tr[target], "train",
+                       X_ts, Y_ts[target], "test",
+                       symbol='partition',
+                       hover_name=Y.Formula, color=Y.LoT)
+  p.update_traces(
+      marker_opacity=0.2,
+      selector={'marker_symbol':'circle'}
+  )
+
+  p.update_layout(title_text='Band Gaps [eV]', font_family='arial narrow', font_size=15,
+                  margin=dict(t=35,b=0,l=0,r=0))
+  p.update_annotations(visible=False)
+
+  p.show(renderer='svg')
+#+end_src
+
+#+RESULTS:
+:results:
+#+attr_org: :width 700
+[[file:../ParityPlots/rfr_t_bg.svg]]
+:end:
+
+#+begin_src jupyter-python 
+  p.write_html('./ParityPlots/rfr_t_bg.html', include_plotlyjs='../plotly.min.js')
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  pd.Series(batch_score(cpipe, X_ts, Y_ts[target], **mix_scorings)).to_frame()
+#+end_src
+
+#+RESULTS:
+:results:
+|           | 0         |
+|-----------+-----------|
+| r2        | 0.991352  |
+| ev        | 0.991409  |
+| maxerr    | -0.764664 |
+| rmse      | -0.134671 |
+| rmse_A    | -0.068568 |
+| rmse_B    | -0.148062 |
+| rmse_X    | -0.155311 |
+| rmse_pure | -0.124812 |
+:end:
+
+#+begin_src jupyter-python
+  pd.Series(batch_score(cpipe, X_ts, Y_ts[target], **lot_scorings)).to_frame()
+#+end_src
+
+#+RESULTS:
+:results:
+|                   |         0 |
+|-------------------+-----------|
+| r2                |  0.991352 |
+| ev                |  0.991409 |
+| maxerr            | -0.764664 |
+| rmse              | -0.134671 |
+| rmse_EXP          | -0.188727 |
+| rmse_PBE          | -0.102778 |
+| rmse_HSE          | -0.170726 |
+| rmse_HSE(SOC)     | -0.102896 |
+| rmse_HSE-PBE(SOC) | -0.162380 |
+:end:
+
+#+begin_src jupyter-python
+  pd.concat([data, Y[['Formula', 'LoT', 'mix', 'org']]], axis=1).to_csv('~/data/perovskites/rfr_pred.csv')
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+*** introspect
+**** basic
+extract feature importance
+#+begin_src jupyter-python
+  FI = pd.DataFrame(
+      cpipe[-1].feature_importances_,
+      index=cpipe[:-1].get_feature_names_out(),
+      columns=['Feature Importance']
+  )
+  FI.index = FI.index.str.replace(pat=r"\[|'|\]", repl="", regex=True)
+  # FI[FI.coefficients!=0]
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python 
+  FI.groupby(FI.index.str[0:8]).aggregate('sum')
+#+end_src
+
+#+RESULTS:
+:results:
+|          | Feature Importance |
+|----------+--------------------|
+| cat__LoT | 0.142008           |
+| comp__(A | 0.020431           |
+| comp__(B | 0.030430           |
+| comp__(X | 0.029176           |
+| prop__(A | 0.097912           |
+| prop__(B | 0.558283           |
+| prop__(X | 0.121760           |
+:end:
+
+#+begin_src jupyter-python
+  p = px.bar(FI, y='Feature Importance', width=1000)
+  p.update_xaxes(tickangle=-45, title='')
+  p.update_layout(
+      xaxis = dict(tickmode='array',
+                   tickvals=list(range(cpipe[-1].n_features_in_)),
+                   ticktext=list(map(lambda s: s[6:], cpipe[:-1].get_feature_names_out())))
+  )
+  p.show(renderer='svg')
+#+end_src
+
+#+RESULTS:
+:results:
+[[file:./.ob-jupyter/7491f42e101f71cd1b3923c2a634396260532dc1.svg]]
+:end:
+
+#+begin_src jupyter-python
+  FI.to_csv('./model_introspection/rfr_fi.csv')
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+**** SHAP
+***** instantiate explainer engine
+#+begin_src jupyter-python
+  explainer = shap.Explainer(cpipe[-1].predict,
+                             cpipe[:-1].transform(shap.sample(X_tr, 300)),
+                             feature_names=FI.index.to_list())
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+  
+#+begin_src jupyter-python
+  shap_values = explainer(cpipe[:-1].transform(X))
+#+end_src
+
+#+RESULTS:
+:results:
+: Permutation explainer: 1385it [03:03,  7.18it/s]
+:end:
+
+#+begin_src jupyter-python
+  %matplotlib inline
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+#+begin_src jupyter-python
+  plt.rc("figure", facecolor='w')
+#+end_src
+
+#+RESULTS:
+:results:
+:end:
+
+***** shap scatter plot
+#+begin_src jupyter-python
+  shap.plots.scatter(shap_values[:,"prop__(B, En)"])
+#+end_src
+
+#+RESULTS:
+:results:
+#+attr_org: :width 421
+[[file:./.ob-jupyter/6f5c880a4f43d373916bf0901d41eb9af452494f.png]]
+:end:
+
+***** partial dependence plots
+#+begin_src jupyter-python
+  sample_ind = 30
+  shap.partial_dependence_plot(
+      "prop__(B, El_aff_kJ/mol)", cpipe[-1].predict, cpipe[:-1].transform(shap.sample(X_tr, 300)),
+      feature_names=FI.index.to_list(),
+      ice=False, model_expected_value=True,
+      feature_expected_value=True, show=True,
+      shap_values=shap_values[sample_ind:sample_ind+1,:]
+  )
+#+end_src
+
+#+RESULTS:
+:results:
+#+attr_org: :width 428
+[[file:./.ob-jupyter/ed36330216db87db8eb66b725375097e297190c2.png]]
+:end:
+
+***** waterfall plots
+#+begin_src jupyter-python
+  shap.plots.waterfall(shap_values[sample_ind], max_display=14)
+#+end_src
+
+#+RESULTS:
+:results:
+#+attr_org: :width 789
+[[file:./.ob-jupyter/b0a0f6026916c80cb25352bb26409c54fb4fb588.png]]
+:end:
+
+***** beeswarm plots
+#+begin_src jupyter-python
+  shap.plots.beeswarm(shap_values)
+#+end_src
+
+#+RESULTS:
+:results:
+#+attr_org: :width 660
+[[file:./.ob-jupyter/704d3204752bc52a936aeb9d96e45380512c8c3d.png]]
+:end:
+
+***** explore correlated features
+#+begin_src jupyter-python
+  # depends on xgboost module
+  # clustering = shap.utils.hclust(X, Y)
+#+end_src
+
+#+begin_src jupyter-python
+  # shap.plots.bar(shap_values, clustering=clustering)
+#+end_src
+
+** Measure Optimized estimator's ability to extrapolate
+on this domain get scores per:
+*** LoT on LoT group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=5), lot_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], LoTcat_tr, Y_tr.LoT,
+                  X_ts, Y_ts[target].iloc[:,0], LoTcat_ts, Y_ts.LoT)
+#+end_src
+
+#+RESULTS:
+:results:
+|        | PBErel   | HSErel   | HSErel(SOC) | HSE-PBE(SOC) | EXP      | partition  |
+|--------+----------+----------+-------------+--------------+----------+------------|
+| r2     | 0.37902  | 0.66578  | 0.85743     | 0.94392      | -2.07326 | validation |
+| ev     | 0.85300  | 0.84270  | 0.87989     | 0.95539      | -1.25132 | validation |
+| maxerr | -2.28495 | -2.90760 | -2.56052    | -2.28840     | -1.33969 | validation |
+| rmse   | -1.00454 | -0.78129 | -0.55655    | -0.37937     | -0.70562 | validation |
+| r2     | 0.46530  | 0.73397  | 0.79526     | 0.96592      | -1.02972 | test       |
+| ev     | 0.86887  | 0.88412  | 0.82621     | 0.97793      | 0.05878  | test       |
+| maxerr | -1.88328 | -1.96575 | -3.05807    | -0.86900     | -0.96038 | test       |
+| rmse   | -0.94852 | -0.71286 | -0.65791    | -0.32477     | -0.75169 | test       |
+:end:
+
+- horrible lot extrapolation
+- lot scoring
+- actually seems to deteriorate for the most part
+  - EXP is predicted worse except for ev score
+  - no meaningful change in other groups
+
+*** LoT on mix group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=4), lot_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], mixcat_tr, Y_tr.mix,
+                  X_ts, Y_ts[target].iloc[:,0], mixcat_ts, Y_ts.mix)
+#+end_src
+
+#+RESULTS:
+:results:
+|                   | B        | pure     | X        | A        | partition  |
+|-------------------+----------+----------+----------+----------+------------|
+| r2                | 0.78336  | 0.96515  | 0.87193  | 0.90822  | validation |
+| ev                | 0.78525  | 0.96515  | 0.87362  | 0.93438  | validation |
+| maxerr            | -1.65862 | -1.23244 | -2.46400 | -1.77693 | validation |
+| rmse              | -0.54573 | -0.32688 | -0.47345 | -0.48260 | validation |
+| rmse_EXP          | -0.20116 | -0.41268 | -0.16043 | -0.10036 | validation |
+| rmse_PBE          | -0.45356 | -0.25833 | -0.31354 | -0.40286 | validation |
+| rmse_HSE          | -0.50799 | -0.34406 | -0.82254 | -0.53261 | validation |
+| rmse_HSE(SOC)     | -0.62681 | -0.38156 | -0.71304 | -0.71557 | validation |
+| rmse_HSE-PBE(SOC) | -0.60850 | -0.28840 | -0.43464 | -0.43196 | validation |
+| r2                | 0.82422  | 0.96491  | 0.87057  | 0.99024  | test       |
+| ev                | 0.82433  | 0.96669  | 0.87544  | 0.99030  | test       |
+| maxerr            | -1.21756 | -0.89586 | -2.26052 | -0.43576 | test       |
+| rmse              | -0.46437 | -0.35891 | -0.51806 | -0.17056 | test       |
+| rmse_EXP          | -0.22659 | -0.04100 | -0.16222 | -0.21205 | test       |
+| rmse_PBE          | -0.41958 | -0.23214 | -0.47720 | -0.19035 | test       |
+| rmse_HSE          | -0.54000 | -0.43727 | -0.29816 | -0.11486 | test       |
+| rmse_HSE(SOC)     | -0.47700 | -0.32239 | -0.84786 | -0.18578 | test       |
+| rmse_HSE-PBE(SOC) | -0.39950 | -0.42445 | -0.15114 | -0.08955 | test       |
+:end:
+
+- mix extrapolation
+- lot scoring
+- no meaningful change
+
+*** mix on mix group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=4), mix_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], mixcat_tr, Y_tr.mix,
+                  X_ts, Y_ts[target].iloc[:,0], mixcat_ts, Y_ts.mix)
+#+end_src
+
+#+RESULTS:
+:results:
+|        | B        | pure     | X        | A        | partition  |
+|--------+----------+----------+----------+----------+------------|
+| r2     | 0.77157  | 0.96388  | 0.86929  | 0.90905  | validation |
+| ev     | 0.77348  | 0.96388  | 0.87076  | 0.93557  | validation |
+| maxerr | -1.68228 | -1.21920 | -2.46797 | -1.62873 | validation |
+| rmse   | -0.56038 | -0.33282 | -0.47830 | -0.48041 | validation |
+| r2     | 0.80956  | 0.96416  | 0.85430  | 0.98973  | test       |
+| ev     | 0.80983  | 0.96665  | 0.85972  | 0.98980  | test       |
+| maxerr | -1.24563 | -0.86418 | -2.54856 | -0.41332 | test       |
+| rmse   | -0.48335 | -0.36269 | -0.54966 | -0.17498 | test       |
+:end:
+
+- mix extrapolation
+- mix scoring
+- max error worse
+- substantial improvement in test partition
+  - probably lucky
+
+*** mix on LoT group
+#+begin_src jupyter-python 
+  test_generality(cpipe, GroupKFold(n_splits=5), mix_scorings,
+                  X_tr, Y_tr[target].iloc[:,0], LoTcat_tr, Y_tr.LoT,
+                  X_ts, Y_ts[target].iloc[:,0], LoTcat_ts, Y_ts.LoT)
+#+end_src
+
+#+RESULTS:
+:results:
+|           | PBErel   | HSErel   | HSErel(SOC) | HSE-PBE(SOC) | EXP      | partition  |
+|-----------+----------+----------+-------------+--------------+----------+------------|
+| r2        | 0.37986  | 0.66606  | 0.85410     | 0.94827      | -2.01982 | validation |
+| ev        | 0.85391  | 0.84050  | 0.87835     | 0.95779      | -1.29113 | validation |
+| maxerr    | -2.28377 | -2.94566 | -2.58276    | -2.27189     | -1.40477 | validation |
+| rmse      | -1.00387 | -0.78097 | -0.56300    | -0.36434     | -0.69945 | validation |
+| rmse_A    | -1.02877 | -0.64342 | -0.43382    | -0.24764     | -0.66255 | validation |
+| rmse_B    | -0.66956 | -0.62983 | -0.37687    | -0.24394     | -0.83892 | validation |
+| rmse_X    | -1.20040 | -1.32198 | -1.10384    | -0.70145     | -0.65826 | validation |
+| rmse_pure | -1.03640 | -0.73924 | -0.57499    | -0.34775     | -0.67909 | validation |
+| r2        | 0.46233  | 0.73769  | 0.78646     | 0.97159      | -0.93764 | test       |
+| ev        | 0.86731  | 0.88531  | 0.82107     | 0.98093      | 0.06647  | test       |
+| maxerr    | -1.84799 | -1.96811 | -3.18097    | -0.79672     | -0.96671 | test       |
+| rmse      | -0.95115 | -0.70785 | -0.67190    | -0.29655     | -0.73444 | test       |
+| rmse_A    | -1.02336 | -0.65649 | -0.60452    | -0.24886     | -0.75307 | test       |
+| rmse_B    | -0.70654 | -0.63434 | -0.42549    | -0.29468     | -0.94139 | test       |
+| rmse_X    | -1.15433 | -1.47559 | -1.46481    | -0.40478     | -0.62720 | test       |
+| rmse_pure | -0.94989 | -0.55676 | -0.30502    | -0.28749     | -0.61191 | test       |
+:end:
+
+- horrible lot extrapolations 
+- mix scoring
+- again, validation scoring is actually worse
+- but, test scores improve significantly
+
+* Export Trained Model
+#+begin_src jupyter-python
+  joblib.dump(cpipe, "./Models/rfr_t_bg.joblib")
+#+end_src
+
+#+RESULTS:
+:results:
+| ./Models/rfr_t_bg.joblib |
+:end:
